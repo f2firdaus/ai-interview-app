@@ -60,3 +60,4 @@ Expo (React Native) mobile app.
   1. Installs all dependencies for all packages
   2. **Hoists** shared deps to the root `node_modules` (saves disk space)
   3. **Symlinks** internal packages (`@ai-interview/shared` → `packages/shared`)
+# ai-interview-app
