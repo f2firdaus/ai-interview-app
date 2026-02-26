@@ -1,0 +1,24 @@
+{
+  "name": "ai-interview-app",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=packages/backend & npm run start --workspace=packages/frontend",
+    "dev:backend": "npm run dev --workspace=packages/backend",
+    "dev:frontend": "npm run start --workspace=packages/frontend",
+    "build": "npm run build --workspace=packages/backend",
+    "build:all": "npm run build --workspaces --if-present"
+  },
+  "dependencies": {
+    "chokidar": "^5.0.0",
+    "glob-parent": "^6.0.2",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-test-renderer": "^19.1.0",
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0"
+  }
+}
