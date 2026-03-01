@@ -6,6 +6,7 @@ import morgan from "morgan";
 import authRoutes from "./modules/auth/auth.routes";
 import resumeRoutes from "./modules/resume/resume.routes";
 import aiRoutes from "./modules/ai/ai.routes"; // Ensure this path is correct
+import interviewRoutes from "./modules/interview/interview.routes"; // NEW LINE
 import { errorHandler } from "./middleware/error.middleware";
 
 const app = express();
@@ -26,6 +27,7 @@ app.get("/health", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/resume", resumeRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/interviews', interviewRoutes);
 // router.post("/transcribe", ...); // Add this
 // Global Error Handler
 app.use(errorHandler);

@@ -1,0 +1,123 @@
+import React, { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import api from "../services/api";
+
+export default function HistoryScreen({ navigation }: any) {
+  const [history, setHistory] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchHistory();
+  }, []);
+
+  const fetchHistory = async () => {
+    try {
+      const res = await api.get("/interviews?status=completed");
+      setHistory(res.data);
+    } catch (err) {
+      console.log("Error fetching history");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Past Interviews</Text>
+        <TouchableOpacity onPress={fetchHistory}>
+          <Ionicons name="refresh" size={24} color="#3B82F6" />
+        </TouchableOpacity>
+      </View>
+      
+      {loading ? (
+        <View style={styles.loaderContainer}>
+          <ActivityIndicator size="large" color="#3B82F6" />
+        </View>
+      ) : (
+        <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+          {history.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="document-text-outline" size={64} color="#374151" />
+              <Text style={styles.emptyText}>No completed interviews yet.</Text>
+            </View>
+          ) : (
+            history.map((item, index) => (
+              <View key={index} style={styles.card}>
+                <View style={styles.cardHeader}>
+                  <Text style={styles.cardTitle}>{item.title}</Text>
+                  <View style={styles.scoreBadge}>
+                    <Text style={styles.scoreText}>{item.score || 0}%</Text>
+                  </View>
+                </View>
+                <Text style={styles.cardDate}>
+                  {new Date(item.date).toLocaleDateString("en-US", {
+                    month: "short", day: "numeric", year: "numeric"
+                  })}
+                </Text>
+                
+                {/* Feedback line clamp */}
+                {item.feedback ? (
+                  <Text style={styles.feedbackText} numberOfLines={2}>
+                    {item.feedback}
+                  </Text>
+                ) : null}
+
+                <TouchableOpacity style={styles.viewDetailsBtn}>
+                  <Text style={styles.viewDetailsText}>View AI Feedback</Text>
+                  <Ionicons name="arrow-forward" size={16} color="#3B82F6" />
+                </TouchableOpacity>
+              </View>
+            ))
+          )}
+        </ScrollView>
+      )}
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: "#0A0E17" },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: "#1F2937",
+  },
+  headerTitle: { color: "#FFFFFF", fontSize: 24, fontWeight: "bold" },
+  loaderContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+  scrollContainer: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 40 },
+  emptyState: { alignItems: "center", marginTop: 80 },
+  emptyText: { color: "#9CA3AF", fontSize: 16, marginTop: 16 },
+  
+  card: {
+    backgroundColor: "#101623",
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#1F2937",
+  },
+  cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 },
+  cardTitle: { color: "#FFFFFF", fontSize: 18, fontWeight: "bold", flex: 1, paddingRight: 12 },
+  scoreBadge: { backgroundColor: "#15244A", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: "#1E3A8A" },
+  scoreText: { color: "#3B82F6", fontSize: 14, fontWeight: "bold" },
+  cardDate: { color: "#9CA3AF", fontSize: 13, marginBottom: 12 },
+  feedbackText: { color: "#D1D5DB", fontSize: 14, lineHeight: 20, marginBottom: 16 },
+  
+  viewDetailsBtn: { flexDirection: "row", alignItems: "center", paddingTop: 16, borderTopWidth: 1, borderTopColor: "#1F2937" },
+  viewDetailsText: { color: "#3B82F6", fontSize: 14, fontWeight: "bold", marginRight: 8 },
+});

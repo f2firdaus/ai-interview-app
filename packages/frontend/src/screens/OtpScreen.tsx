@@ -22,7 +22,7 @@ export default function OtpScreen({ navigation, route }: any) {
       otp,
     });
 
-    navigation.navigate("Upload");
+    navigation.navigate("Main");
   } catch (err: any) {
     console.log(err?.response?.data || err.message);
     Alert.alert("Invalid OTP");
