@@ -4,7 +4,7 @@ const hf = new HfInference(process.env.HF_API_KEY!);
 export async function generateQuestions(resumeText: string) {
   try {
     const prompt = `
-Generate EXACTLY 20 interview questions from this resume.
+Generate EXACTLY 5 interview questions from this resume.
 
 Return ONLY JSON in this format:
 
@@ -46,7 +46,7 @@ ${resumeText}
         // ✅ Robust JSON extraction and parsing
         // Strip markdown code fences if present (```json ... ```)
         let cleaned = raw.replace(/```(?:json)?\s*/gi, "").replace(/```/g, "").trim();
-        
+
         // Try to extract JSON object from the text
         const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
@@ -59,17 +59,17 @@ ${resumeText}
                 .filter((q: string) => q.length > 5);
               return parsed;
             }
-          } catch {}
+          } catch { }
         }
 
         // Fallback: extract lines that look like actual questions
         const lines = cleaned
           .split("\n")
-          .map((l: string) => l.replace(/^\d+[\.\)]\s*/, "").replace(/^[-•*]\s*/, "").trim())
+          .map((l: string) => l.replace(/^\d+[\.)\]]\s*/, "").replace(/^[-•*]\s*/, "").trim())
           .filter((l: string) => {
             // Must be a meaningful sentence (>10 chars), not JSON syntax
             if (l.length < 10) return false;
-            if (/^[\{\}\[\],:"]+$/.test(l)) return false;
+            if (/^[\{\}\[\],:\"]+$/.test(l)) return false;
             if (l.startsWith('"questions"')) return false;
             return true;
           });
@@ -98,6 +98,7 @@ ${resumeText}
     };
   }
 }
+
 export async function evaluateAnswer(
   question: string,
   answer: string
@@ -124,47 +125,59 @@ Return ONLY JSON in this format:
 }
 `;
 
-    const response = await hf.chatCompletion({
-      model:"mistralai/Mistral-7B-Instruct-v0.2",
-      messages: [
-        { role: "system", content: "You are a strict interviewer." },
-        { role: "user", content: prompt },
-      ],
-      max_tokens: 400,
-    });
+    let lastError: any;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        console.log(`🔄 Evaluation attempt ${attempt + 1}/3...`);
+        const response = await hf.chatCompletion({
+          model: "meta-llama/Meta-Llama-3-8B-Instruct",
+          messages: [
+            { role: "system", content: "You are a strict but fair interviewer. Always respond with valid JSON only." },
+            { role: "user", content: prompt },
+          ],
+          max_tokens: 500,
+        });
 
-    const raw = response.choices[0].message.content || "";
+        const raw = response.choices[0].message.content || "";
+        console.log("🧠 Evaluation RAW:", raw.substring(0, 200));
 
-    // console.log("🧠 Evaluation RAW:", raw);
+        // Robust JSON extraction
+        let cleaned = raw.replace(/```(?:json)?\s*/gi, "").replace(/```/g, "").trim();
 
-    // Try robust JSON extraction
-    try {
-      // Clean up markdown fences
-      let cleaned = raw.replace(/```(?:json)?\s*/gi, "").replace(/```/g, "").trim();
-      
-      // Try to find a JSON object in the string
-      const match = cleaned.match(/\{[\s\S]*\}/);
-      if (match) {
-        return JSON.parse(match[0]);
+        const match = cleaned.match(/\{[\s\S]*\}/);
+        if (match) {
+          const parsed = JSON.parse(match[0]);
+          console.log("✅ Evaluation score:", parsed.score);
+          return parsed;
+        }
+
+        const parsed = JSON.parse(cleaned);
+        console.log("✅ Evaluation score:", parsed.score);
+        return parsed;
+      } catch (retryErr: any) {
+        lastError = retryErr;
+        console.error(`⚠ Evaluation attempt ${attempt + 1} failed:`, retryErr?.message || retryErr);
+        if (attempt < 2) {
+          console.log("⏳ Waiting 3s before retry...");
+          await new Promise((r) => setTimeout(r, 3000));
+        }
       }
-      
-      // Fallback direct parse if regex misses
-      return JSON.parse(cleaned);
-    } catch {
-      return {
-        score: 5,
-        strength: "Could not parse AI output",
-        improvement: "Try answering more clearly",
-        betterAnswer: raw,
-      };
     }
 
-  } catch (err) {
-    console.error("Evaluation error:", err);
-
+    // All retries failed
+    console.error("❌ Evaluation failed after 3 attempts:", lastError?.message);
     return {
-      score: 0,
-      strength: "Evaluation failed",
+      score: 5,
+      strength: "AI evaluation temporarily unavailable",
+      improvement: "Please try again",
+      betterAnswer: "",
+    };
+
+  } catch (err) {
+    console.error("Unexpected evaluation error:", err);
+    return {
+      score: 5,
+      strength: "Evaluation error",
       improvement: "Try again",
       betterAnswer: "",
     };

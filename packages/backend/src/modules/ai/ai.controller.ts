@@ -35,49 +35,60 @@ export const transcribeAudio = async (req: Request, res: Response) => {
   }
 
   try {
-    // Read the uploaded audio file directly (no ffmpeg conversion needed)
+    // Read the uploaded audio file directly
     const audioBuffer = fs.readFileSync(filePath);
     const originalName = req.file?.originalname || "audio.m4a";
+    const mimeType = req.file?.mimetype || "audio/m4a";
 
-    // Detect content type from the file extension
-    const ext = path.extname(originalName).toLowerCase();
-    const contentTypeMap: Record<string, string> = {
-      ".m4a": "audio/mp4",
-      ".mp4": "audio/mp4",
-      ".wav": "audio/wav",
-      ".webm": "audio/webm",
-      ".ogg": "audio/ogg",
-      ".flac": "audio/flac",
-      ".mp3": "audio/mpeg",
-    };
-    const contentType = contentTypeMap[ext] || "audio/mp4";
+    console.log(`🎤 Audio received: name=${originalName}, mime=${mimeType}, size=${audioBuffer.length} bytes`);
 
-    console.log(`🎤 Transcribing audio (${contentType}, ${audioBuffer.length} bytes) via HuggingFace Whisper API...`);
+    // Try content types in order of preference
+    const contentTypesToTry = ["audio/m4a", "audio/x-m4a", "audio/wav", "audio/webm", "audio/mpeg"];
 
-    // Direct fetch to HuggingFace Inference API — Whisper accepts m4a/mp4/wav/webm natively
-    const response = await fetch(
-      "https://router.huggingface.co/hf-inference/models/openai/whisper-large-v3-turbo",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.HF_API_KEY}`,
-          "Content-Type": contentType,
-        },
-        body: audioBuffer,
+    let lastError = "";
+    for (const contentType of contentTypesToTry) {
+      try {
+        console.log(`🔄 Trying transcription with Content-Type: ${contentType}...`);
+
+        const response = await fetch(
+          "https://router.huggingface.co/hf-inference/models/openai/whisper-large-v3",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${process.env.HF_API_KEY}`,
+              "Content-Type": contentType,
+            },
+            body: audioBuffer,
+          }
+        );
+
+        if (response.ok) {
+          const result = await response.json() as { text?: string };
+          const fullText = result.text?.trim() || "";
+          console.log("✅ Transcription result:", fullText);
+          return res.json({ success: true, text: fullText });
+        }
+
+        const errText = await response.text();
+        lastError = errText;
+
+        // If it's a format error, try next content type
+        if (response.status === 400) {
+          console.log(`⚠️ ${contentType} rejected, trying next...`);
+          continue;
+        }
+
+        // For other errors (auth, rate limit), don't retry
+        console.error("HF Whisper API error:", response.status, errText);
+        throw new Error(`HF API returned ${response.status}: ${errText}`);
+      } catch (fetchErr: any) {
+        if (fetchErr.message?.includes("HF API returned")) throw fetchErr;
+        lastError = fetchErr.message;
+        console.log(`⚠️ Fetch error with ${contentType}:`, fetchErr.message);
       }
-    );
-
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error("HF Whisper API error:", response.status, errText);
-      throw new Error(`HF API returned ${response.status}: ${errText}`);
     }
 
-    const result = await response.json() as { text?: string };
-    const fullText = result.text?.trim() || "";
-    console.log("✅ Transcription result:", fullText);
-
-    res.json({ success: true, text: fullText });
+    throw new Error(`All content types failed. Last error: ${lastError}`);
 
   } catch (error) {
     console.error("Transcription Error:", error);

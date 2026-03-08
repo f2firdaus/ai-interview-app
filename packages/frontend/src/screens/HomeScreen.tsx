@@ -8,6 +8,8 @@ import {
   SafeAreaView,
   ActivityIndicator,
   RefreshControl,
+  Platform,
+  StatusBar,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import api from "../services/api";
@@ -216,7 +218,11 @@ export default function HomeScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#0A0E17" },
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#0A0E17",
+    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
+  },
   scrollContainer: { paddingHorizontal: 20, paddingBottom: 40, paddingTop: 10 },
   loaderContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 30 },

@@ -9,6 +9,7 @@ import {
   Platform,
   SafeAreaView,
   Alert,
+  StatusBar,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import api from "../services/api";
@@ -84,8 +85,8 @@ export default function LoginScreen({ navigation }: any) {
 
             {/* Social Buttons */}
             <View style={styles.socialRow}>
-              <TouchableOpacity 
-                style={styles.socialBtn} 
+              <TouchableOpacity
+                style={styles.socialBtn}
                 onPress={async () => {
                   try {
                     await loginWithGoogle();
@@ -127,6 +128,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: "#10141E",
+    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
   },
   container: {
     flex: 1,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -9,16 +9,15 @@ import {
   Alert,
   ScrollView,
   StatusBar,
+  Platform,
+  SafeAreaView,
 } from "react-native";
-import {
-  useAudioRecorder,
-  RecordingPresets,
-  requestRecordingPermissionsAsync,
-  setAudioModeAsync,
-} from "expo-audio";
-import * as Speech from "expo-speech";
+import { Audio } from "expo-av";
 import { Ionicons } from "@expo/vector-icons";
 import api from "../services/api";
+
+// Log the detected API URL on load
+console.log("🌐 API Base URL:", api.defaults.baseURL);
 
 type FeedbackItem = {
   question: string;
@@ -41,39 +40,80 @@ export default function InterviewScreen({ route, navigation }: any) {
   const [savedInterviewId, setSavedInterviewId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recordingRef = useRef<Audio.Recording | null>(null);
 
-  // Auto-speak question on index change
-  useEffect(() => {
-    if (questions.length > 0 && currentIndex < questions.length) {
-      speak(questions[currentIndex]);
-    }
-    return () => { Speech.stop() };
-  }, [currentIndex]);
 
-  const speak = (text: string) => {
-    Speech.stop();
-    Speech.speak(text, { language: "en-US", rate: 0.9 });
-  };
-
-  // --- Recording Functions ---
+  // --- Recording Functions (using expo-av) ---
   async function startRecording() {
     try {
-      const { granted } = await requestRecordingPermissionsAsync();
-      if (!granted) {
+      const permission = await Audio.requestPermissionsAsync();
+      if (!permission.granted) {
         Alert.alert("Permission", "Microphone permission is required.");
         return;
       }
 
-      await setAudioModeAsync({
-        allowsRecording: true,
-        playsInSilentMode: true,
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
       });
 
-      recorder.record();
+      // Android: use AMR format (native, small files, supported by HF Whisper)
+      // iOS: use WAV/PCM (native, supported by HF Whisper)
+      const recordingOptions = Platform.OS === "android"
+        ? {
+          isMeteringEnabled: false,
+          android: {
+            extension: ".amr",
+            outputFormat: Audio.AndroidOutputFormat.AMR_NB,
+            audioEncoder: Audio.AndroidAudioEncoder.AMR_NB,
+            sampleRate: 8000,
+            numberOfChannels: 1,
+            bitRate: 12200,
+          },
+          ios: {
+            extension: ".wav",
+            outputFormat: Audio.IOSOutputFormat.LINEARPCM,
+            audioQuality: Audio.IOSAudioQuality.MEDIUM,
+            sampleRate: 16000,
+            numberOfChannels: 1,
+            bitRate: 128000,
+            linearPCMBitDepth: 16,
+            linearPCMIsBigEndian: false,
+            linearPCMIsFloat: false,
+          },
+          web: { mimeType: "audio/webm", bitsPerSecond: 128000 },
+        }
+        : {
+          isMeteringEnabled: false,
+          android: {
+            extension: ".amr",
+            outputFormat: Audio.AndroidOutputFormat.AMR_NB,
+            audioEncoder: Audio.AndroidAudioEncoder.AMR_NB,
+            sampleRate: 8000,
+            numberOfChannels: 1,
+            bitRate: 12200,
+          },
+          ios: {
+            extension: ".wav",
+            outputFormat: Audio.IOSOutputFormat.LINEARPCM,
+            audioQuality: Audio.IOSAudioQuality.MEDIUM,
+            sampleRate: 16000,
+            numberOfChannels: 1,
+            bitRate: 128000,
+            linearPCMBitDepth: 16,
+            linearPCMIsBigEndian: false,
+            linearPCMIsFloat: false,
+          },
+          web: { mimeType: "audio/webm", bitsPerSecond: 128000 },
+        };
+
+      const { recording } = await Audio.Recording.createAsync(recordingOptions);
+      recordingRef.current = recording;
       setIsRecording(true);
+      console.log("🎙️ Recording started (format:", Platform.OS === "android" ? "AMR" : "WAV", ")");
     } catch (err) {
-      console.error("Failed to start recording", err);
+      console.error("Failed to start recording:", err);
+      Alert.alert("Error", "Could not start recording. Please check microphone permissions.");
       setIsRecording(false);
     }
   }
@@ -82,8 +122,19 @@ export default function InterviewScreen({ route, navigation }: any) {
     try {
       setIsRecording(false);
       setIsProcessing(true);
-      await recorder.stop();
-      const uri = recorder.uri;
+
+      const recording = recordingRef.current;
+      if (!recording) {
+        console.log("❌ No active recording found");
+        Alert.alert("Error", "No active recording found.");
+        setIsProcessing(false);
+        return;
+      }
+
+      await recording.stopAndUnloadAsync();
+      const uri = recording.getURI();
+      recordingRef.current = null;
+
       console.log("🎤 Recording stopped. URI:", uri);
       if (uri) {
         await transcribeAudio(uri);
@@ -109,11 +160,17 @@ export default function InterviewScreen({ route, navigation }: any) {
     try {
       setIsProcessing(true);
       console.log("📤 Sending audio for transcription, URI:", uri);
+
+      // Detect format from URI or platform
+      const isAmr = Platform.OS === "android";
+      const fileName = isAmr ? "answer.amr" : "answer.wav";
+      const mimeType = isAmr ? "audio/amr" : "audio/wav";
+
       const formData = new FormData();
       formData.append("audio", {
         uri,
-        name: "answer.m4a",
-        type: "audio/m4a",
+        name: fileName,
+        type: mimeType,
       } as any);
 
       const res = await api.post("/ai/transcribe", formData, {
@@ -162,7 +219,7 @@ export default function InterviewScreen({ route, navigation }: any) {
         },
       ]);
 
-      Speech.speak(`You scored ${fb.score} out of 10. ${fb.strength}`);
+      // Score feedback saved silently (no speech)
     } catch (e) {
       console.error(e);
       Alert.alert("Error", "Evaluation failed");
@@ -247,184 +304,193 @@ export default function InterviewScreen({ route, navigation }: any) {
     const skipped = allResults.filter((r) => r.score === 0);
 
     return (
-      <ScrollView style={styles.container} contentContainerStyle={{ padding: 25 }}>
+      <SafeAreaView style={styles.safeArea}>
         <StatusBar barStyle="light-content" backgroundColor="#0f172a" />
-        <Text style={styles.resultTitle}>🎉 Interview Complete!</Text>
+        <ScrollView style={styles.container} contentContainerStyle={{ padding: 25 }}>
+          <Text style={styles.resultTitle}>🎉 Interview Complete!</Text>
 
-        <View style={styles.scoreCard}>
-          <Text style={styles.bigScore}>{avgScore}</Text>
-          <Text style={styles.outOf}>/10</Text>
-        </View>
-        <Text style={styles.scoreLabel}>Average Score</Text>
-
-        <View style={styles.statsRow}>
-          <View style={styles.statBox}>
-            <Text style={styles.statNum}>{answered.length}</Text>
-            <Text style={styles.statLabel}>Answered</Text>
+          <View style={styles.scoreCard}>
+            <Text style={styles.bigScore}>{avgScore}</Text>
+            <Text style={styles.outOf}>/10</Text>
           </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statNum}>{skipped.length}</Text>
-            <Text style={styles.statLabel}>Skipped</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statNum}>{questions.length}</Text>
-            <Text style={styles.statLabel}>Total</Text>
-          </View>
-        </View>
+          <Text style={styles.scoreLabel}>Average Score</Text>
 
-        <Text style={styles.sectionTitle}>Question-by-Question Results</Text>
-
-        {allResults.map((r, i) => (
-          <View key={i} style={styles.resultCard}>
-            <View style={styles.resultHeader}>
-              <Text style={styles.resultQ}>Q{i + 1}</Text>
-              <Text
-                style={[
-                  styles.resultScore,
-                  { color: r.score >= 7 ? "#10b981" : r.score >= 4 ? "#f59e0b" : "#ef4444" },
-                ]}
-              >
-                {r.score}/10
-              </Text>
+          <View style={styles.statsRow}>
+            <View style={styles.statBox}>
+              <Text style={styles.statNum}>{answered.length}</Text>
+              <Text style={styles.statLabel}>Answered</Text>
             </View>
-            <Text style={styles.resultQuestion} numberOfLines={2}>
-              {r.question}
-            </Text>
-            {r.strength && r.strength !== "-" && (
-              <Text style={styles.resultStrength}>✅ {r.strength}</Text>
-            )}
-            {r.improvement && r.improvement !== "Question was skipped" && (
-              <Text style={styles.resultImprove}>📈 {r.improvement}</Text>
-            )}
+            <View style={styles.statBox}>
+              <Text style={styles.statNum}>{skipped.length}</Text>
+              <Text style={styles.statLabel}>Skipped</Text>
+            </View>
+            <View style={styles.statBox}>
+              <Text style={styles.statNum}>{questions.length}</Text>
+              <Text style={styles.statLabel}>Total</Text>
+            </View>
           </View>
-        ))}
 
-        {isSaving ? (
-          <View style={{ alignItems: "center", marginTop: 20, marginBottom: 40 }}>
-            <ActivityIndicator size="small" color="#3B82F6" />
-            <Text style={{ color: "#94a3b8", marginTop: 10 }}>Saving results...</Text>
-          </View>
-        ) : (
-          <View style={{ marginTop: 20, marginBottom: 40 }}>
-            <TouchableOpacity
-              style={[styles.submitBtn, { marginBottom: 12 }]}
-              onPress={() => navigation.navigate("Upload")}
-            >
-              <Text style={styles.btnText}>Start New Interview</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.skipBtn, { alignItems: "center" }]}
-              onPress={() => navigation.navigate("Main")}
-            >
-              <Text style={styles.skipBtnText}>Back to Home</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </ScrollView>
+          <Text style={styles.sectionTitle}>Question-by-Question Results</Text>
+
+          {allResults.map((r, i) => (
+            <View key={i} style={styles.resultCard}>
+              <View style={styles.resultHeader}>
+                <Text style={styles.resultQ}>Q{i + 1}</Text>
+                <Text
+                  style={[
+                    styles.resultScore,
+                    { color: r.score >= 7 ? "#10b981" : r.score >= 4 ? "#f59e0b" : "#ef4444" },
+                  ]}
+                >
+                  {r.score}/10
+                </Text>
+              </View>
+              <Text style={styles.resultQuestion} numberOfLines={2}>
+                {r.question}
+              </Text>
+              {r.strength && r.strength !== "-" && (
+                <Text style={styles.resultStrength}>✅ {r.strength}</Text>
+              )}
+              {r.improvement && r.improvement !== "Question was skipped" && (
+                <Text style={styles.resultImprove}>📈 {r.improvement}</Text>
+              )}
+            </View>
+          ))}
+
+          {isSaving ? (
+            <View style={{ alignItems: "center", marginTop: 20, marginBottom: 40 }}>
+              <ActivityIndicator size="small" color="#3B82F6" />
+              <Text style={{ color: "#94a3b8", marginTop: 10 }}>Saving results...</Text>
+            </View>
+          ) : (
+            <View style={{ marginTop: 20, marginBottom: 40 }}>
+              <TouchableOpacity
+                style={[styles.submitBtn, { marginBottom: 12 }]}
+                onPress={() => navigation.navigate("Upload")}
+              >
+                <Text style={styles.btnText}>Start New Interview</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.skipBtn, { alignItems: "center" }]}
+                onPress={() => navigation.navigate("Main")}
+              >
+                <Text style={styles.skipBtnText}>Back to Home</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </ScrollView>
+      </SafeAreaView>
     );
   }
 
   // =================== INTERVIEW SCREEN ===================
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
+    <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor="#0f172a" />
+      <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
 
-      {/* Progress Bar */}
-      <View style={styles.progressContainer}>
-        <View style={styles.progressBar}>
-          <View
-            style={[
-              styles.progressFill,
-              { width: `${((currentIndex + 1) / questions.length) * 100}%` as any },
-            ]}
-          />
-        </View>
-        <Text style={styles.progressText}>
-          {currentIndex + 1} / {questions.length}
-        </Text>
-      </View>
-
-      {/* Question */}
-      <Text style={styles.qText}>{questions[currentIndex]}</Text>
-
-      {/* Answer Input */}
-      <TextInput
-        style={styles.input}
-        multiline
-        value={answer}
-        onChangeText={setAnswer}
-        placeholder="Your answer will appear here..."
-        placeholderTextColor="#64748b"
-      />
-
-      {/* Mic Button */}
-      <View style={styles.micContainer}>
-        <TouchableOpacity
-          style={[styles.micBtn, isRecording && styles.micActive]}
-          onPress={toggleRecording}
-          disabled={isProcessing}
-        >
-          {isProcessing ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Ionicons
-              name={isRecording ? "stop" : "mic"}
-              size={32}
-              color="#fff"
+        {/* Progress Bar */}
+        <View style={styles.progressContainer}>
+          <View style={styles.progressBar}>
+            <View
+              style={[
+                styles.progressFill,
+                { width: `${((currentIndex + 1) / questions.length) * 100}%` as any },
+              ]}
             />
-          )}
-        </TouchableOpacity>
-        <Text style={styles.hintText}>
-          {isProcessing ? "Processing..." : isRecording ? "Tap to Stop" : "Tap to Speak"}
-        </Text>
-      </View>
-
-      {/* Feedback Box */}
-      {feedback && (
-        <View style={styles.feedbackBox}>
-          <Text style={styles.scoreText}>Score: {feedback.score}/10</Text>
-          <Text style={styles.feedbackItem}>✅ {feedback.strength}</Text>
-          {feedback.improvement && (
-            <Text style={styles.feedbackItem}>📈 {feedback.improvement}</Text>
-          )}
+          </View>
+          <Text style={styles.progressText}>
+            {currentIndex + 1} / {questions.length}
+          </Text>
         </View>
-      )}
 
-      {/* Action Buttons */}
-      <View style={styles.buttonRow}>
-        {!feedback && (
+        {/* Question */}
+        <Text style={styles.qText}>{questions[currentIndex]}</Text>
+
+        {/* Answer Input */}
+        <TextInput
+          style={styles.input}
+          multiline
+          value={answer}
+          onChangeText={setAnswer}
+          placeholder="Your answer will appear here..."
+          placeholderTextColor="#64748b"
+        />
+
+        {/* Mic Button */}
+        <View style={styles.micContainer}>
           <TouchableOpacity
-            style={styles.skipBtn}
-            onPress={handleSkip}
+            style={[styles.micBtn, isRecording && styles.micActive]}
+            onPress={toggleRecording}
             disabled={isProcessing}
           >
-            <Text style={styles.skipBtnText}>Skip</Text>
+            {isProcessing ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Ionicons
+                name={isRecording ? "stop" : "mic"}
+                size={32}
+                color="#fff"
+              />
+            )}
           </TouchableOpacity>
+          <Text style={styles.hintText}>
+            {isProcessing ? "Processing..." : isRecording ? "Tap to Stop" : "Tap to Speak"}
+          </Text>
+        </View>
+
+        {/* Feedback Box */}
+        {feedback && (
+          <View style={styles.feedbackBox}>
+            <Text style={styles.scoreText}>Score: {feedback.score}/10</Text>
+            <Text style={styles.feedbackItem}>✅ {feedback.strength}</Text>
+            {feedback.improvement && (
+              <Text style={styles.feedbackItem}>📈 {feedback.improvement}</Text>
+            )}
+          </View>
         )}
 
-        <TouchableOpacity
-          style={[styles.submitBtn, { flex: 1 }]}
-          onPress={feedback ? handleNext : handleEvaluate}
-          disabled={isProcessing}
-        >
-          {isProcessing ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.btnText}>
-              {feedback
-                ? currentIndex + 1 >= questions.length
-                  ? "See Results"
-                  : "Next Question"
-                : "Submit Answer"}
-            </Text>
+        {/* Action Buttons */}
+        <View style={styles.buttonRow}>
+          {!feedback && (
+            <TouchableOpacity
+              style={styles.skipBtn}
+              onPress={handleSkip}
+              disabled={isProcessing}
+            >
+              <Text style={styles.skipBtnText}>Skip</Text>
+            </TouchableOpacity>
           )}
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+
+          <TouchableOpacity
+            style={[styles.submitBtn, { flex: 1 }]}
+            onPress={feedback ? handleNext : handleEvaluate}
+            disabled={isProcessing}
+          >
+            {isProcessing ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.btnText}>
+                {feedback
+                  ? currentIndex + 1 >= questions.length
+                    ? "See Results"
+                    : "Next Question"
+                  : "Submit Answer"}
+              </Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#0f172a",
+    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
+  },
   container: {
     flex: 1,
     backgroundColor: "#0f172a",

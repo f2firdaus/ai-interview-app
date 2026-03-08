@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  StatusBar,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -145,6 +146,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: "#10141E", // Dark navy bg modeled after the image
+    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
   },
   scrollContainer: {
     flexGrow: 1,

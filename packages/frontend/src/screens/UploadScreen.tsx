@@ -6,7 +6,8 @@ import {
   ActivityIndicator,
   Alert,
   StyleSheet,
-  StatusBar
+  StatusBar,
+  Platform
 } from "react-native";
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as DocumentPicker from "expo-document-picker";
@@ -40,13 +41,13 @@ const UploadScreen = ({ navigation }: any) => {
         headers: {
           "Content-Type": "multipart/form-data",
         },
-        transformRequest: (data) => data, 
+        transformRequest: (data) => data,
       });
 
       if (response.data && response.data.questions) {
         setLoading(false);
-        navigation.navigate("Interview", { 
-          questions: response.data.questions 
+        navigation.navigate("Interview", {
+          questions: response.data.questions
         });
       } else {
         setLoading(false);
@@ -64,7 +65,7 @@ const UploadScreen = ({ navigation }: any) => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0f172a" />
       <View style={styles.content}>
-        
+
         {/* Glowing Icon Container */}
         <View style={styles.iconGlowWrap}>
           <LinearGradient
@@ -74,7 +75,7 @@ const UploadScreen = ({ navigation }: any) => {
             <Ionicons name="document-text" size={70} color="#60a5fa" />
           </LinearGradient>
         </View>
-        
+
         <Text style={styles.title}>AI Interview Coach</Text>
         <Text style={styles.subtitle}>
           Upload your resume and our AI will generate personalized technical interview questions.
@@ -87,9 +88,9 @@ const UploadScreen = ({ navigation }: any) => {
             <Text style={styles.subLoadingText}>Generating tailored questions...</Text>
           </View>
         ) : (
-          <TouchableOpacity 
-            style={styles.touchableArea} 
-            activeOpacity={0.8} 
+          <TouchableOpacity
+            style={styles.touchableArea}
+            activeOpacity={0.8}
             onPress={handleUpload}
           >
             <LinearGradient
@@ -114,6 +115,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#0f172a", // Deep Slate
+    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
   },
   content: {
     flex: 1,

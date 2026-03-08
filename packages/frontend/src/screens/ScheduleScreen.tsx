@@ -11,6 +11,8 @@ import {
   Modal,
   Alert,
   RefreshControl,
+  Platform,
+  StatusBar,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import api from "../services/api";
@@ -193,7 +195,11 @@ export default function ScheduleScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#0A0E17" },
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#0A0E17",
+    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
+  },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",

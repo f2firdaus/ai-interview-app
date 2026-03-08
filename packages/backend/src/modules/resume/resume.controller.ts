@@ -45,7 +45,7 @@ export const uploadResume = async (req: Request, res: Response) => {
       .map((q: any) => typeof q === "string" ? q.trim() : "")
       .filter((q: string) => q.length > 10 && !/^[\{\}\[\],:"]+$/.test(q));
 
-    questions = questions.slice(0, 20);
+    questions = questions.slice(0, 5);
     return res.status(200).json({
       success: true,
       questions,

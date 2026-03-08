@@ -7,6 +7,8 @@ import {
   SafeAreaView,
   ScrollView,
   ActivityIndicator,
+  Platform,
+  StatusBar,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import api from "../services/api";
@@ -129,7 +131,11 @@ export default function ProfileScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#0A0E17" },
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#0A0E17",
+    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
+  },
   scrollContainer: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 40 },
   headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 30 },
   headerBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#161B28", justifyContent: "center", alignItems: "center" },

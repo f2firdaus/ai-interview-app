@@ -28,6 +28,8 @@ const api = axios.create({
   timeout: 120000,
 });
 
+console.log("🌐 Axios baseURL configured as:", api.defaults.baseURL);
+
 // Add response interceptor to handle errors
 api.interceptors.response.use(
   (response) => response,
