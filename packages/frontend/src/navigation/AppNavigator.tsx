@@ -9,6 +9,7 @@ import SignupScreen from "../screens/SignupScreen";
 import OtpScreen from "../screens/OtpScreen";
 import UploadScreen from "../screens/UploadScreen";
 import InterviewScreen from "../screens/InterviewScreen";
+import InterviewDetailScreen from "../screens/InterviewDetailScreen";
 import HomeScreen from "../screens/HomeScreen";
 import HistoryScreen from "../screens/HistoryScreen";
 import ScheduleScreen from "../screens/ScheduleScreen";
@@ -64,6 +65,7 @@ export default function AppNavigator() {
         <Stack.Screen name="OTP" component={OtpScreen} />
         <Stack.Screen name="Upload" component={UploadScreen} />
         <Stack.Screen name="Interview" component={InterviewScreen} />
+        <Stack.Screen name="InterviewDetail" component={InterviewDetailScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

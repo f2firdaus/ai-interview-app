@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import api from "../services/api";
@@ -14,12 +15,9 @@ import api from "../services/api";
 export default function HistoryScreen({ navigation }: any) {
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    fetchHistory();
-  }, []);
-
-  const fetchHistory = async () => {
+  const fetchHistory = useCallback(async () => {
     try {
       const res = await api.get("/interviews?status=completed");
       setHistory(res.data);
@@ -27,36 +25,55 @@ export default function HistoryScreen({ navigation }: any) {
       console.log("Error fetching history");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchHistory();
+  }, [fetchHistory]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("focus", () => {
+      fetchHistory();
+    });
+    return unsubscribe;
+  }, [navigation, fetchHistory]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Past Interviews</Text>
-        <TouchableOpacity onPress={fetchHistory}>
+        <TouchableOpacity onPress={() => { setRefreshing(true); fetchHistory(); }}>
           <Ionicons name="refresh" size={24} color="#3B82F6" />
         </TouchableOpacity>
       </View>
-      
+
       {loading ? (
         <View style={styles.loaderContainer}>
           <ActivityIndicator size="large" color="#3B82F6" />
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContainer}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchHistory(); }} tintColor="#3B82F6" />
+          }
+        >
           {history.length === 0 ? (
             <View style={styles.emptyState}>
               <Ionicons name="document-text-outline" size={64} color="#374151" />
               <Text style={styles.emptyText}>No completed interviews yet.</Text>
+              <Text style={styles.emptySubtext}>Complete a mock interview to see your results here.</Text>
             </View>
           ) : (
-            history.map((item, index) => (
-              <View key={index} style={styles.card}>
+            history.map((item) => (
+              <View key={item._id} style={styles.card}>
                 <View style={styles.cardHeader}>
                   <Text style={styles.cardTitle}>{item.title}</Text>
                   <View style={styles.scoreBadge}>
-                    <Text style={styles.scoreText}>{item.score || 0}%</Text>
+                    <Text style={styles.scoreText}>{item.score || 0}/10</Text>
                   </View>
                 </View>
                 <Text style={styles.cardDate}>
@@ -64,15 +81,17 @@ export default function HistoryScreen({ navigation }: any) {
                     month: "short", day: "numeric", year: "numeric"
                   })}
                 </Text>
-                
-                {/* Feedback line clamp */}
+
                 {item.feedback ? (
                   <Text style={styles.feedbackText} numberOfLines={2}>
                     {item.feedback}
                   </Text>
                 ) : null}
 
-                <TouchableOpacity style={styles.viewDetailsBtn}>
+                <TouchableOpacity
+                  style={styles.viewDetailsBtn}
+                  onPress={() => navigation.navigate("InterviewDetail", { interview: item })}
+                >
                   <Text style={styles.viewDetailsText}>View AI Feedback</Text>
                   <Ionicons name="arrow-forward" size={16} color="#3B82F6" />
                 </TouchableOpacity>
@@ -102,7 +121,8 @@ const styles = StyleSheet.create({
   scrollContainer: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 40 },
   emptyState: { alignItems: "center", marginTop: 80 },
   emptyText: { color: "#9CA3AF", fontSize: 16, marginTop: 16 },
-  
+  emptySubtext: { color: "#6B7280", fontSize: 13, marginTop: 8, textAlign: "center", paddingHorizontal: 40 },
+
   card: {
     backgroundColor: "#101623",
     borderRadius: 16,
@@ -117,7 +137,7 @@ const styles = StyleSheet.create({
   scoreText: { color: "#3B82F6", fontSize: 14, fontWeight: "bold" },
   cardDate: { color: "#9CA3AF", fontSize: 13, marginBottom: 12 },
   feedbackText: { color: "#D1D5DB", fontSize: 14, lineHeight: 20, marginBottom: 16 },
-  
+
   viewDetailsBtn: { flexDirection: "row", alignItems: "center", paddingTop: 16, borderTopWidth: 1, borderTopColor: "#1F2937" },
   viewDetailsText: { color: "#3B82F6", fontSize: 14, fontWeight: "bold", marginRight: 8 },
 });

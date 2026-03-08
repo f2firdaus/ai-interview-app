@@ -1,23 +1,44 @@
 import axios from "axios";
+import { Platform } from "react-native";
+import Constants from "expo-constants";
+
+// Auto-detect backend URL:
+// - Android emulator uses 10.0.2.2 to reach host machine
+// - iOS simulator uses localhost
+// - Physical device uses the dev machine IP from Expo
+function getBaseUrl(): string {
+  // Try to get the debuggerHost from Expo (works on physical devices)
+  const debuggerHost = Constants.expoConfig?.hostUri ?? Constants.manifest2?.extra?.expoGo?.debuggerHost;
+
+  if (debuggerHost) {
+    const ip = debuggerHost.split(":")[0];
+    return `http://${ip}:5000/api`;
+  }
+
+  // Fallback for emulators
+  if (Platform.OS === "android") {
+    return "http://10.0.2.2:5000/api";
+  }
+
+  return "http://localhost:5000/api";
+}
 
 const api = axios.create({
-  baseURL: "http://192.168.1.13:5000/api",
-  timeout: 120000
+  baseURL: getBaseUrl(),
+  timeout: 120000,
 });
 
-// Add response interceptor to handle type conversion
+// Add response interceptor to handle errors
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response) {
-      
-      console.log("Data:", error.response.data);
-      console.log("Status:", error.response.status);
+      console.log("API Error Data:", error.response.data);
+      console.log("API Error Status:", error.response.status);
     } else if (error.request) {
-    
-      console.log("Request info:", error.request);
+      console.log("API No Response:", error.request._url || error.message);
     } else {
-      console.log("Error Message:", error.message);
+      console.log("API Error:", error.message);
     }
     return Promise.reject(error);
   }

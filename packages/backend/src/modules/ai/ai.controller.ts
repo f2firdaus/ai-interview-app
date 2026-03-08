@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import fs from 'fs';
-import { execSync } from 'child_process';
 import path from 'path';
 import { evaluateAnswer } from "../../services/hf.service";
 
@@ -30,33 +29,39 @@ export const evaluate = async (req: Request, res: Response) => {
 
 export const transcribeAudio = async (req: Request, res: Response) => {
   const filePath = req.file?.path;
-  let wavPath = "";
 
   if (!filePath) {
     return res.status(400).json({ error: "No audio file received" });
   }
 
   try {
-    // Convert to WAV using ffmpeg (HF Whisper API needs a recognizable format)
-    wavPath = filePath + ".wav";
-    console.log("🔄 Converting audio to WAV...");
-    execSync(`ffmpeg -y -i "${filePath}" -ar 16000 -ac 1 -c:a pcm_s16le "${wavPath}"`, {
-      stdio: 'pipe'
-    });
+    // Read the uploaded audio file directly (no ffmpeg conversion needed)
+    const audioBuffer = fs.readFileSync(filePath);
+    const originalName = req.file?.originalname || "audio.m4a";
 
-    // Read the converted WAV file
-    const audioBuffer = fs.readFileSync(wavPath);
+    // Detect content type from the file extension
+    const ext = path.extname(originalName).toLowerCase();
+    const contentTypeMap: Record<string, string> = {
+      ".m4a": "audio/mp4",
+      ".mp4": "audio/mp4",
+      ".wav": "audio/wav",
+      ".webm": "audio/webm",
+      ".ogg": "audio/ogg",
+      ".flac": "audio/flac",
+      ".mp3": "audio/mpeg",
+    };
+    const contentType = contentTypeMap[ext] || "audio/mp4";
 
-    console.log("🎤 Transcribing audio via HuggingFace Whisper API...");
+    console.log(`🎤 Transcribing audio (${contentType}, ${audioBuffer.length} bytes) via HuggingFace Whisper API...`);
 
-    // Direct fetch to HuggingFace Inference API
+    // Direct fetch to HuggingFace Inference API — Whisper accepts m4a/mp4/wav/webm natively
     const response = await fetch(
       "https://router.huggingface.co/hf-inference/models/openai/whisper-large-v3-turbo",
       {
         method: "POST",
         headers: {
           Authorization: `Bearer ${process.env.HF_API_KEY}`,
-          "Content-Type": "audio/wav",
+          "Content-Type": contentType,
         },
         body: audioBuffer,
       }
@@ -78,13 +83,10 @@ export const transcribeAudio = async (req: Request, res: Response) => {
     console.error("Transcription Error:", error);
     res.status(500).json({ success: false, error: "Transcription failed" });
   } finally {
-    // 🧹 Clean up both files
+    // 🧹 Clean up uploaded file
     if (filePath && fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
-    if (wavPath && fs.existsSync(wavPath)) {
-      fs.unlinkSync(wavPath);
-    }
-    console.log("🧹 Temp audio files deleted");
+    console.log("🧹 Temp audio file deleted");
   }
 };

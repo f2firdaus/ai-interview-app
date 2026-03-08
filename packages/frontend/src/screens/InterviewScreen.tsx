@@ -38,6 +38,8 @@ export default function InterviewScreen({ route, navigation }: any) {
   const [feedback, setFeedback] = useState<any>(null);
   const [allResults, setAllResults] = useState<FeedbackItem[]>([]);
   const [isComplete, setIsComplete] = useState(false);
+  const [savedInterviewId, setSavedInterviewId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
 
@@ -82,10 +84,17 @@ export default function InterviewScreen({ route, navigation }: any) {
       setIsProcessing(true);
       await recorder.stop();
       const uri = recorder.uri;
-      if (uri) await transcribeAudio(uri);
+      console.log("🎤 Recording stopped. URI:", uri);
+      if (uri) {
+        await transcribeAudio(uri);
+      } else {
+        console.log("❌ No recording URI available");
+        Alert.alert("Error", "Recording failed - no audio file was created. Please try again.");
+        setIsProcessing(false);
+      }
     } catch (error) {
       console.error("Stop error:", error);
-    } finally {
+      Alert.alert("Error", "Failed to stop recording. Please try again.");
       setIsProcessing(false);
     }
   }
@@ -99,6 +108,7 @@ export default function InterviewScreen({ route, navigation }: any) {
   const transcribeAudio = async (uri: string) => {
     try {
       setIsProcessing(true);
+      console.log("📤 Sending audio for transcription, URI:", uri);
       const formData = new FormData();
       formData.append("audio", {
         uri,
@@ -110,11 +120,18 @@ export default function InterviewScreen({ route, navigation }: any) {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
+      console.log("📥 Transcription response:", JSON.stringify(res.data));
       const newText = res.data.text;
-      setAnswer((prev: string) => (prev ? prev + " " + newText : newText));
-    } catch (e) {
-      console.error(e);
-      Alert.alert("Error", "Speech recognition failed.");
+      if (newText && newText.trim()) {
+        setAnswer((prev: string) => (prev ? prev + " " + newText : newText));
+        console.log("✅ Answer updated with transcribed text");
+      } else {
+        console.log("⚠️ Transcription returned empty text");
+        Alert.alert("Notice", "Could not recognize speech. Please speak clearly and try again.");
+      }
+    } catch (e: any) {
+      console.error("Transcription error:", e?.response?.data || e?.message || e);
+      Alert.alert("Error", "Speech recognition failed. Make sure the backend has ffmpeg installed.");
     } finally {
       setIsProcessing(false);
     }
@@ -154,10 +171,45 @@ export default function InterviewScreen({ route, navigation }: any) {
     }
   };
 
+  // --- Save Results to Backend ---
+  const saveResults = async (results: FeedbackItem[]) => {
+    try {
+      setIsSaving(true);
+      // 1. Create an interview record
+      const createRes = await api.post("/interviews", {
+        title: `Interview - ${new Date().toLocaleDateString()}`,
+        date: new Date().toISOString(),
+      });
+      const interviewId = createRes.data._id;
+
+      // 2. Calculate overall score
+      const answered = results.filter((r) => r.score > 0);
+      const avgScore = answered.length > 0
+        ? Math.round((answered.reduce((s, r) => s + r.score, 0) / answered.length) * 10) / 10
+        : 0;
+
+      // 3. Complete it with results
+      await api.put(`/interviews/${interviewId}/complete`, {
+        score: avgScore,
+        feedback: `Completed ${answered.length}/${results.length} questions with an average score of ${avgScore}/10.`,
+        questions: results,
+      });
+
+      setSavedInterviewId(interviewId);
+    } catch (err) {
+      console.log("Error saving results:", err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   // --- Next Question or Finish ---
   const handleNext = () => {
     if (currentIndex + 1 >= questions.length) {
       setIsComplete(true);
+      // Save all results (the current feedback was already added to allResults)
+      const finalResults = [...allResults];
+      saveResults(finalResults);
     } else {
       setCurrentIndex(currentIndex + 1);
       setFeedback(null);
@@ -247,12 +299,27 @@ export default function InterviewScreen({ route, navigation }: any) {
           </View>
         ))}
 
-        <TouchableOpacity
-          style={[styles.submitBtn, { marginTop: 20, marginBottom: 40 }]}
-          onPress={() => navigation.navigate("Upload")}
-        >
-          <Text style={styles.btnText}>Start New Interview</Text>
-        </TouchableOpacity>
+        {isSaving ? (
+          <View style={{ alignItems: "center", marginTop: 20, marginBottom: 40 }}>
+            <ActivityIndicator size="small" color="#3B82F6" />
+            <Text style={{ color: "#94a3b8", marginTop: 10 }}>Saving results...</Text>
+          </View>
+        ) : (
+          <View style={{ marginTop: 20, marginBottom: 40 }}>
+            <TouchableOpacity
+              style={[styles.submitBtn, { marginBottom: 12 }]}
+              onPress={() => navigation.navigate("Upload")}
+            >
+              <Text style={styles.btnText}>Start New Interview</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.skipBtn, { alignItems: "center" }]}
+              onPress={() => navigation.navigate("Main")}
+            >
+              <Text style={styles.skipBtnText}>Back to Home</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
     );
   }
@@ -428,10 +495,10 @@ const styles = StyleSheet.create({
     shadowRadius: 15,
     elevation: 10,
   },
-  micActive: { 
-    backgroundColor: "#ef4444", 
+  micActive: {
+    backgroundColor: "#ef4444",
     shadowColor: "#ef4444",
-    transform: [{ scale: 1.15 }] 
+    transform: [{ scale: 1.15 }]
   },
   hintText: { marginTop: 15, color: "#94a3b8", fontSize: 14, fontWeight: "600" },
   buttonRow: {
