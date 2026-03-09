@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import api from "../services/api";
-import { Alert } from "react-native";
 import {
   View,
   Text,
@@ -12,9 +11,11 @@ import {
   StatusBar,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useCustomAlert } from "../context/AlertContext";
 
 export default function OtpScreen({ navigation, route }: any) {
   const [otp, setOtp] = useState("");
+  const { showAlert } = useCustomAlert();
 
   const verifyOtp = async () => {
     if (otp.length < 4) return;
@@ -28,7 +29,7 @@ export default function OtpScreen({ navigation, route }: any) {
       navigation.navigate("Main");
     } catch (err: any) {
       console.log(err?.response?.data || err.message);
-      Alert.alert("Invalid OTP");
+      showAlert("Error", "Invalid OTP", [{ text: "OK", style: "destructive" }]);
     }
   };
 

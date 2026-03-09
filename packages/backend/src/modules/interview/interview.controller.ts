@@ -4,11 +4,10 @@ import Interview from "../../models/interview.model";
 export const createInterview = async (req: Request, res: Response) => {
   try {
     const { title, date } = req.body;
-    // Mock user for now (auth skipped)
-    const dummyUserId = "60b9c9c8a9f24250146f4949";
+    const userId = (req as any).user.id;
 
     const item = await Interview.create({
-      userId: dummyUserId,
+      userId,
       title,
       date: new Date(date),
       status: "upcoming"
@@ -21,8 +20,10 @@ export const createInterview = async (req: Request, res: Response) => {
 
 export const getInterviews = async (req: Request, res: Response) => {
   try {
+    const userId = (req as any).user.id;
     const status = req.query.status as string;
-    const query = status ? { status } : {};
+    const query: any = { userId };
+    if (status) query.status = status;
 
     const items = await Interview.find(query).sort({ date: -1 });
     res.json(items);
@@ -33,7 +34,8 @@ export const getInterviews = async (req: Request, res: Response) => {
 
 export const getInterviewById = async (req: Request, res: Response) => {
   try {
-    const item = await Interview.findById(req.params.id);
+    const userId = (req as any).user.id;
+    const item = await Interview.findOne({ _id: req.params.id, userId });
     if (!item) {
       return res.status(404).json({ error: "Interview not found" });
     }
@@ -45,10 +47,11 @@ export const getInterviewById = async (req: Request, res: Response) => {
 
 export const completeInterview = async (req: Request, res: Response) => {
   try {
+    const userId = (req as any).user.id;
     const { score, feedback, questions } = req.body;
 
-    const item = await Interview.findByIdAndUpdate(
-      req.params.id,
+    const item = await Interview.findOneAndUpdate(
+      { _id: req.params.id, userId },
       {
         status: "completed",
         score,
@@ -68,10 +71,11 @@ export const completeInterview = async (req: Request, res: Response) => {
   }
 };
 
-export const getStats = async (_req: Request, res: Response) => {
+export const getStats = async (req: Request, res: Response) => {
   try {
-    const completed = await Interview.find({ status: "completed" });
-    const upcoming = await Interview.find({ status: "upcoming" }).sort({ date: 1 });
+    const userId = (req as any).user.id;
+    const completed = await Interview.find({ status: "completed", userId });
+    const upcoming = await Interview.find({ status: "upcoming", userId }).sort({ date: 1 });
 
     const totalCompleted = completed.length;
     const totalUpcoming = upcoming.length;
@@ -96,6 +100,7 @@ export const getStats = async (_req: Request, res: Response) => {
     endOfWeek.setDate(startOfWeek.getDate() + 7);
 
     const sessionsThisWeek = await Interview.countDocuments({
+      userId,
       date: { $gte: startOfWeek, $lt: endOfWeek },
     });
 
@@ -114,7 +119,8 @@ export const getStats = async (_req: Request, res: Response) => {
 
 export const deleteInterview = async (req: Request, res: Response) => {
   try {
-    const item = await Interview.findByIdAndDelete(req.params.id);
+    const userId = (req as any).user.id;
+    const item = await Interview.findOneAndDelete({ _id: req.params.id, userId });
     if (!item) {
       return res.status(404).json({ error: "Interview not found" });
     }
@@ -125,11 +131,11 @@ export const deleteInterview = async (req: Request, res: Response) => {
 };
 
 // Quick practice: create an interview and immediately return it (no resume needed)
-export const quickPractice = async (_req: Request, res: Response) => {
+export const quickPractice = async (req: Request, res: Response) => {
   try {
-    const dummyUserId = "60b9c9c8a9f24250146f4949";
+    const userId = (req as any).user.id;
     const item = await Interview.create({
-      userId: dummyUserId,
+      userId,
       title: "Quick Practice",
       date: new Date(),
       status: "upcoming",

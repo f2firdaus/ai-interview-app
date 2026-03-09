@@ -12,16 +12,40 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import api from "../services/api";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Alert } from "react-native";
+import { useCustomAlert } from "../context/AlertContext";
 
 export default function SignupScreen({ navigation }: any) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const { showAlert } = useCustomAlert();
 
-  const handleCreateAccount = () => {
-    // Navigate to Login or main Dashboard
-    navigation.navigate("Main");
+  const handleCreateAccount = async () => {
+    if (!name || !email || !password) {
+      showAlert("Error", "Please fill in all fields", [{ text: "OK", style: "cancel" }]);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await api.post("/auth/signup", { name, email, password });
+
+      if (response.data.token) {
+        showAlert("Success", "Account created successfully. Please log in.", [
+          { text: "Log In", onPress: () => navigation.navigate("Login") }
+        ]);
+      }
+    } catch (error: any) {
+      const msg = error.response?.data?.error || "Signup failed";
+      showAlert("Signup Failed", msg, [{ text: "OK", style: "destructive" }]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -126,9 +150,9 @@ export default function SignupScreen({ navigation }: any) {
           </View>
 
           {/* Create Account Button */}
-          <TouchableOpacity style={styles.submitButton} onPress={handleCreateAccount}>
-            <Text style={styles.submitButtonText}>Create Account</Text>
-            <Ionicons name="arrow-forward" size={20} color="#FFFFFF" style={styles.submitIcon} />
+          <TouchableOpacity style={styles.submitButton} onPress={handleCreateAccount} disabled={loading}>
+            <Text style={styles.submitButtonText}>{loading ? "Creating..." : "Create Account"}</Text>
+            {!loading && <Ionicons name="arrow-forward" size={20} color="#FFFFFF" style={styles.submitIcon} />}
           </TouchableOpacity>
 
           {/* Footer Text */}

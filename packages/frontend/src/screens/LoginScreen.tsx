@@ -13,20 +13,39 @@ import {
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import api from "../services/api";
-import { useAuth } from "../context/AuthContext";
+import { useCustomAlert } from "../context/AlertContext";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function LoginScreen({ navigation }: any) {
-  const [phone, setPhone] = useState("");
-  const { loginWithGoogle } = useAuth();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const { showAlert } = useCustomAlert();
 
-  const handleSendOtp = async () => {
-    if (phone.length < 10) return;
+  const handleLogin = async () => {
+    if (!email || !password) {
+      showAlert("Error", "Please fill in all fields", [{ text: "OK", style: "cancel" }]);
+      return;
+    }
+
+    setLoading(true);
     try {
-      await api.post("/auth/request", { phone });
-      navigation.navigate("OTP", { phone });
+      const response = await api.post("/auth/login", { email, password });
+
+      if (response.data.token) {
+        await AsyncStorage.setItem("userToken", response.data.token);
+        navigation.reset({
+          index: 0,
+          routes: [{ name: "Main" }],
+        });
+      }
     } catch (err: any) {
-      console.log("OTP ERROR:", err?.response?.data || err.message);
-      Alert.alert("Failed to send OTP");
+      console.log("LOGIN ERROR:", err?.response?.data || err.message);
+      const msg = err.response?.data?.error || "Login failed";
+      showAlert("Failed to login", msg, [{ text: "OK", style: "destructive" }]);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -39,9 +58,6 @@ export default function LoginScreen({ navigation }: any) {
         <View style={styles.container}>
           {/* Header */}
           <View style={styles.headerRow}>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-              <Ionicons name="arrow-back" size={28} color="#FFFFFF" />
-            </TouchableOpacity>
             <View style={styles.logoRow}>
               <View style={styles.logoBox}>
                 <MaterialCommunityIcons name="head-cog" size={20} color="#FFFFFF" />
@@ -57,53 +73,51 @@ export default function LoginScreen({ navigation }: any) {
               Log in to continue your AI-powered interview preparation and land your dream job.
             </Text>
 
-            {/* Input */}
-            <Text style={styles.inputLabel}>PHONE NUMBER</Text>
+            {/* Email Input */}
+            <Text style={styles.inputLabel}>EMAIL ADDRESS</Text>
             <View style={styles.inputContainer}>
-              <Ionicons name="call" size={20} color="#6B7280" style={styles.inputIcon} />
+              <Ionicons name="mail" size={20} color="#6B7280" style={styles.inputIcon} />
               <TextInput
                 style={styles.textInput}
-                placeholder="+1 (555) 000-0000"
+                placeholder="name@example.com"
                 placeholderTextColor="#6B7280"
-                keyboardType="phone-pad"
-                value={phone}
-                onChangeText={setPhone}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={email}
+                onChangeText={setEmail}
               />
             </View>
 
+            {/* Password Input */}
+            <Text style={styles.inputLabel}>PASSWORD</Text>
+            <View style={styles.inputContainer}>
+              <Ionicons name="lock-closed" size={20} color="#6B7280" style={styles.inputIcon} />
+              <TextInput
+                style={styles.textInput}
+                placeholder="••••••••"
+                placeholderTextColor="#6B7280"
+                secureTextEntry={!isPasswordVisible}
+                autoCapitalize="none"
+                value={password}
+                onChangeText={setPassword}
+              />
+              <TouchableOpacity
+                onPress={() => setIsPasswordVisible(!isPasswordVisible)}
+                style={{ padding: 4 }}
+              >
+                <Ionicons
+                  name={isPasswordVisible ? "eye-off" : "eye"}
+                  size={20}
+                  color="#6B7280"
+                />
+              </TouchableOpacity>
+            </View>
+
             {/* Button */}
-            <TouchableOpacity style={styles.submitButton} onPress={handleSendOtp}>
-              <Text style={styles.submitButtonText}>Send OTP</Text>
+            <TouchableOpacity style={styles.submitButton} onPress={handleLogin} disabled={loading}>
+              <Text style={styles.submitButtonText}>{loading ? "Logging in..." : "Log In"}</Text>
             </TouchableOpacity>
 
-            {/* Divider */}
-            <View style={styles.dividerRow}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>OR CONTINUE WITH</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
-            {/* Social Buttons */}
-            <View style={styles.socialRow}>
-              <TouchableOpacity
-                style={styles.socialBtn}
-                onPress={async () => {
-                  try {
-                    await loginWithGoogle();
-                    navigation.navigate("Main");
-                  } catch (e) {
-                    console.error(e);
-                  }
-                }}
-              >
-                <Ionicons name="logo-google" size={20} color="#FFFFFF" />
-                <Text style={styles.socialBtnText}>Google</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.socialBtn} onPress={() => navigation.navigate("Main")}>
-                <Ionicons name="logo-apple" size={20} color="#FFFFFF" />
-                <Text style={styles.socialBtnText}>Apple</Text>
-              </TouchableOpacity>
-            </View>
           </View>
 
           {/* Footer */}
@@ -120,7 +134,7 @@ export default function LoginScreen({ navigation }: any) {
           </View>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </SafeAreaView >
   );
 }
 
@@ -135,19 +149,11 @@ const styles = StyleSheet.create({
   },
   headerRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "flex-end",
     alignItems: "center",
     paddingHorizontal: 24,
     paddingTop: 16,
     marginBottom: 40,
-  },
-  backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#1B2232",
-    justifyContent: "center",
-    alignItems: "center",
   },
   logoRow: {
     flexDirection: "row",
@@ -224,45 +230,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
   },
-  dividerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 32,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: "#282F3E",
-  },
-  dividerText: {
-    color: "#9CA3AF",
-    fontSize: 12,
-    fontWeight: "bold",
-    letterSpacing: 1,
-    paddingHorizontal: 16,
-  },
-  socialRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  socialBtn: {
-    flex: 1,
-    flexDirection: "row",
-    backgroundColor: "#161925",
-    borderWidth: 1,
-    borderColor: "#282F3E",
-    borderRadius: 14,
-    height: 56,
-    justifyContent: "center",
-    alignItems: "center",
-    marginHorizontal: 8,
-  },
-  socialBtnText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
-    marginLeft: 10,
-  },
+
   footerContainer: {
     borderTopWidth: 1,
     borderTopColor: "#1B2232",

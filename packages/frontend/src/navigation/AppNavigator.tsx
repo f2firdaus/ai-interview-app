@@ -1,8 +1,10 @@
-import React from "react";
-import { NavigationContainer } from "@react-navigation/native";
+import React, { useEffect, useState } from "react";
+import { NavigationContainer, DarkTheme } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
+import { View, ActivityIndicator } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import LoginScreen from "../screens/LoginScreen";
 import SignupScreen from "../screens/SignupScreen";
@@ -18,6 +20,14 @@ import ProfileScreen from "../screens/ProfileScreen";
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
+const CustomDarkTheme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    background: "#0A0E17", // Matches the deep background to eliminate white flashes
+  },
+};
+
 // Create the Main Tab Navigator for inside the app
 function MainTabs() {
   return (
@@ -25,11 +35,11 @@ function MainTabs() {
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: "#0A0E17",
+          backgroundColor: "#0F1623",
           borderTopWidth: 1,
           borderTopColor: "#1F2937",
-          height: 60,
-          paddingBottom: 8,
+          height: 64,
+          paddingBottom: 10,
           paddingTop: 8,
         },
         tabBarActiveTintColor: "#3B82F6",
@@ -53,11 +63,40 @@ function MainTabs() {
 }
 
 export default function AppNavigator() {
+  const [initRoute, setInitRoute] = useState<"Login" | "Main" | null>(null);
+
+  useEffect(() => {
+    AsyncStorage.getItem("userToken").then((token) => {
+      if (token) {
+        setInitRoute("Main");
+      } else {
+        setInitRoute("Login");
+      }
+    });
+  }, []);
+
+  if (initRoute === null) {
+    return (
+      <View style={{ flex: 1, backgroundColor: "#0A0E17", justifyContent: "center", alignItems: "center" }}>
+        <View style={{ width: 72, height: 72, borderRadius: 20, backgroundColor: "#1D2D49", justifyContent: "center", alignItems: "center", marginBottom: 20 }}>
+          <Ionicons name="mic" size={36} color="#3B82F6" />
+        </View>
+        <View style={{ alignItems: "center" }}>
+          <ActivityIndicator size="small" color="#3B82F6" style={{ marginTop: 40 }} />
+        </View>
+      </View>
+    );
+  }
+
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={CustomDarkTheme}>
       <Stack.Navigator
-        initialRouteName="Login"
-        screenOptions={{ headerShown: false }}
+        initialRouteName={initRoute}
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: '#0A0E17' },
+          animation: 'slide_from_right'
+        }}
       >
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Signup" component={SignupScreen} />

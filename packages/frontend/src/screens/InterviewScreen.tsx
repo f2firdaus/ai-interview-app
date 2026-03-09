@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Alert,
   ScrollView,
   StatusBar,
   Platform,
@@ -15,6 +14,7 @@ import {
 import { Audio } from "expo-av";
 import { Ionicons } from "@expo/vector-icons";
 import api from "../services/api";
+import { useCustomAlert } from "../context/AlertContext";
 
 // Log the detected API URL on load
 console.log("🌐 API Base URL:", api.defaults.baseURL);
@@ -39,6 +39,7 @@ export default function InterviewScreen({ route, navigation }: any) {
   const [isComplete, setIsComplete] = useState(false);
   const [savedInterviewId, setSavedInterviewId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const { showAlert } = useCustomAlert();
 
   const recordingRef = useRef<Audio.Recording | null>(null);
 
@@ -48,7 +49,7 @@ export default function InterviewScreen({ route, navigation }: any) {
     try {
       const permission = await Audio.requestPermissionsAsync();
       if (!permission.granted) {
-        Alert.alert("Permission", "Microphone permission is required.");
+        showAlert("Permission", "Microphone permission is required.", [{ text: "OK", style: "destructive" }]);
         return;
       }
 
@@ -113,7 +114,7 @@ export default function InterviewScreen({ route, navigation }: any) {
       console.log("🎙️ Recording started (format:", Platform.OS === "android" ? "AMR" : "WAV", ")");
     } catch (err) {
       console.error("Failed to start recording:", err);
-      Alert.alert("Error", "Could not start recording. Please check microphone permissions.");
+      showAlert("Error", "Could not start recording. Please check microphone permissions.", [{ text: "OK", style: "destructive" }]);
       setIsRecording(false);
     }
   }
@@ -126,7 +127,7 @@ export default function InterviewScreen({ route, navigation }: any) {
       const recording = recordingRef.current;
       if (!recording) {
         console.log("❌ No active recording found");
-        Alert.alert("Error", "No active recording found.");
+        showAlert("Error", "No active recording found.", [{ text: "OK", style: "destructive" }]);
         setIsProcessing(false);
         return;
       }
@@ -140,12 +141,12 @@ export default function InterviewScreen({ route, navigation }: any) {
         await transcribeAudio(uri);
       } else {
         console.log("❌ No recording URI available");
-        Alert.alert("Error", "Recording failed - no audio file was created. Please try again.");
+        showAlert("Error", "Recording failed - no audio file was created. Please try again.", [{ text: "OK", style: "destructive" }]);
         setIsProcessing(false);
       }
     } catch (error) {
       console.error("Stop error:", error);
-      Alert.alert("Error", "Failed to stop recording. Please try again.");
+      showAlert("Error", "Failed to stop recording. Please try again.", [{ text: "OK", style: "destructive" }]);
       setIsProcessing(false);
     }
   }
@@ -175,6 +176,7 @@ export default function InterviewScreen({ route, navigation }: any) {
 
       const res = await api.post("/ai/transcribe", formData, {
         headers: { "Content-Type": "multipart/form-data" },
+        transformRequest: (data) => data, // Prevents Axios from corrupting the React Native FormData
       });
 
       console.log("📥 Transcription response:", JSON.stringify(res.data));
@@ -184,11 +186,11 @@ export default function InterviewScreen({ route, navigation }: any) {
         console.log("✅ Answer updated with transcribed text");
       } else {
         console.log("⚠️ Transcription returned empty text");
-        Alert.alert("Notice", "Could not recognize speech. Please speak clearly and try again.");
+        showAlert("Notice", "Could not recognize speech. Please speak clearly and try again.", [{ text: "OK", style: "cancel" }]);
       }
     } catch (e: any) {
       console.error("Transcription error:", e?.response?.data || e?.message || e);
-      Alert.alert("Error", "Speech recognition failed. Make sure the backend has ffmpeg installed.");
+      showAlert("Error", "Speech recognition failed. Make sure the backend has ffmpeg installed.", [{ text: "OK", style: "destructive" }]);
     } finally {
       setIsProcessing(false);
     }
@@ -196,7 +198,7 @@ export default function InterviewScreen({ route, navigation }: any) {
 
   // --- Evaluate Answer ---
   const handleEvaluate = async () => {
-    if (!answer.trim()) return Alert.alert("Wait", "Please provide an answer.");
+    if (!answer.trim()) return showAlert("Wait", "Please provide an answer.", [{ text: "OK", style: "cancel" }]);
     setIsProcessing(true);
     try {
       const res = await api.post("/ai/evaluate", {
@@ -222,7 +224,7 @@ export default function InterviewScreen({ route, navigation }: any) {
       // Score feedback saved silently (no speech)
     } catch (e) {
       console.error(e);
-      Alert.alert("Error", "Evaluation failed");
+      showAlert("Error", "Evaluation failed", [{ text: "OK", style: "destructive" }]);
     } finally {
       setIsProcessing(false);
     }
@@ -389,19 +391,28 @@ export default function InterviewScreen({ route, navigation }: any) {
       <StatusBar barStyle="light-content" backgroundColor="#0f172a" />
       <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
 
-        {/* Progress Bar */}
-        <View style={styles.progressContainer}>
-          <View style={styles.progressBar}>
-            <View
-              style={[
-                styles.progressFill,
-                { width: `${((currentIndex + 1) / questions.length) * 100}%` as any },
-              ]}
-            />
+        {/* Progress Bar & Exit Button */}
+        <View style={styles.topHeader}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate("Main")}
+            style={styles.exitBtn}
+          >
+            <Ionicons name="close" size={24} color="#94a3b8" />
+          </TouchableOpacity>
+
+          <View style={styles.progressContainer}>
+            <View style={styles.progressBar}>
+              <View
+                style={[
+                  styles.progressFill,
+                  { width: `${((currentIndex + 1) / questions.length) * 100}%` as any },
+                ]}
+              />
+            </View>
+            <Text style={styles.progressText}>
+              {currentIndex + 1} / {questions.length}
+            </Text>
           </View>
-          <Text style={styles.progressText}>
-            {currentIndex + 1} / {questions.length}
-          </Text>
         </View>
 
         {/* Question */}
@@ -499,6 +510,20 @@ const styles = StyleSheet.create({
     padding: 25,
     justifyContent: "center",
     flexGrow: 1,
+  },
+  topHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  exitBtn: {
+    marginRight: 15,
+    width: 36,
+    height: 36,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#1e293b",
+    borderRadius: 18,
   },
   progressContainer: {
     flexDirection: "row",

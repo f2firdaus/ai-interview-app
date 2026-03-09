@@ -4,7 +4,6 @@ import {
   Text,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   StyleSheet,
   StatusBar,
   Platform
@@ -12,11 +11,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as DocumentPicker from "expo-document-picker";
 import { Ionicons } from "@expo/vector-icons";
+import { useCustomAlert } from "../context/AlertContext";
 import { LinearGradient } from "expo-linear-gradient";
 import api from "../services/api";
 
 const UploadScreen = ({ navigation }: any) => {
   const [loading, setLoading] = useState(false);
+  const { showAlert } = useCustomAlert();
 
   const handleUpload = async () => {
     try {
@@ -37,12 +38,41 @@ const UploadScreen = ({ navigation }: any) => {
 
       setLoading(true);
 
-      const response = await api.post("/resume/upload", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-        transformRequest: (data) => data,
-      });
+      let response: any;
+      let lastError: any;
+
+      // When the native document picker closes, iOS/Android momentarily drops background Wi-Fi/cellular sockets.
+      // Wait 1 second before firing the first request, and automatically retry if the OS hasn't reconnected yet.
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          if (attempt > 0) {
+            console.log(`🔄 Retrying network upload (Attempt ${attempt + 1}/3)...`);
+          } else {
+            await new Promise(r => setTimeout(r, 1000)); // Initial foreground wait
+          }
+
+          response = await api.post("/resume/upload", formData, {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+            transformRequest: (data) => data,
+          });
+
+          break; // Success! Break out of the retry loop.
+        } catch (err: any) {
+          lastError = err;
+          // Only retry on actual Network/Socket errors, not 4xx or 5xx HTTP codes
+          if (err.message === "Network Error" || err.code === "ECONNABORTED") {
+            await new Promise(r => setTimeout(r, 2000)); // Wait 2 seconds for OS network to stabilize
+          } else {
+            throw err; // Bail out immediately on backend server errors (400, 500)
+          }
+        }
+      }
+
+      if (!response) {
+        throw lastError; // All 3 retries failed due to dropped connection
+      }
 
       if (response.data && response.data.questions) {
         setLoading(false);
@@ -51,19 +81,30 @@ const UploadScreen = ({ navigation }: any) => {
         });
       } else {
         setLoading(false);
-        Alert.alert("Error", "AI couldn't generate questions. Try a different resume.");
+        showAlert("Error", "AI couldn't generate questions. Try a different resume.", [{ text: "OK", style: "destructive" }]);
       }
     } catch (error: any) {
       setLoading(false);
       console.error("Upload Error:", error);
       const errorMsg = error.response?.data?.error || "Network Error: Check your connection";
-      Alert.alert("Upload Failed", errorMsg);
+      showAlert("Upload Failed", errorMsg, [{ text: "OK", style: "destructive" }]);
     }
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0f172a" />
+
+      {/* Top Header with Back Button */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="arrow-back" size={28} color="#f8fafc" />
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.content}>
 
         {/* Glowing Icon Container */}
@@ -116,6 +157,20 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#0f172a", // Deep Slate
     paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
+  },
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   content: {
     flex: 1,

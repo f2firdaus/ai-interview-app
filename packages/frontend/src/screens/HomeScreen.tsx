@@ -13,6 +13,8 @@ import {
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import api from "../services/api";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Modal } from "react-native";
 
 interface Stats {
   avgScore: number;
@@ -27,11 +29,16 @@ export default function HomeScreen({ navigation }: any) {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [notifVisible, setNotifVisible] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [hasUnread, setHasUnread] = useState(false);
 
   const fetchStats = useCallback(async () => {
     try {
       const res = await api.get("/interviews/stats");
       setStats(res.data);
+      // Cache for instant display on next app open
+      AsyncStorage.setItem("cached_stats", JSON.stringify(res.data));
     } catch (err) {
       console.log("Error fetching stats:", err);
     } finally {
@@ -40,9 +47,87 @@ export default function HomeScreen({ navigation }: any) {
     }
   }, []);
 
+  const buildNotifications = useCallback(async () => {
+    try {
+      const [upcomingRes, completedRes] = await Promise.all([
+        api.get("/interviews?status=upcoming"),
+        api.get("/interviews?status=completed"),
+      ]);
+
+      const items: any[] = [];
+
+      // Upcoming session reminders
+      (upcomingRes.data || []).slice(0, 3).forEach((s: any) => {
+        const daysLeft = Math.ceil(
+          (new Date(s.date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+        );
+        items.push({
+          id: `upcoming-${s._id}`,
+          icon: "calendar",
+          iconColor: "#3B82F6",
+          title: "Upcoming Interview",
+          body: `"${s.title}" is scheduled ${daysLeft <= 1 ? "tomorrow" : `in ${daysLeft} days`}.`,
+          time: new Date(s.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+          type: "upcoming",
+        });
+      });
+
+      // Recent results
+      (completedRes.data || []).slice(0, 3).forEach((s: any) => {
+        items.push({
+          id: `result-${s._id}`,
+          icon: "checkmark-circle",
+          iconColor: "#10B981",
+          title: "Interview Results Ready",
+          body: `You scored ${s.score || 0}/10 in "${s.title}". Tap History to review.`,
+          time: new Date(s.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+          type: "result",
+        });
+      });
+
+      // Tips — always present
+      const tips = [
+        "💡 Tip: Practice answering in STAR format (Situation, Task, Action, Result).",
+        "💡 Tip: Record yourself answering and watch it back to improve confidence.",
+        "💡 Tip: Research the company before your interview — show genuine interest.",
+      ];
+      const tip = tips[new Date().getDate() % tips.length];
+      items.push({
+        id: "tip",
+        icon: "bulb",
+        iconColor: "#F59E0B",
+        title: "Daily Tip",
+        body: tip,
+        time: "Today",
+        type: "tip",
+      });
+
+      setNotifications(items);
+      setHasUnread(items.length > 0);
+    } catch (err) {
+      console.log("Notification fetch error:", err);
+    }
+  }, []);
+
   useEffect(() => {
+    // 1. Show cached data INSTANTLY before network responds
+    AsyncStorage.getItem("cached_stats").then((cached) => {
+      if (cached) {
+        setStats(JSON.parse(cached));
+        setLoading(false); // Hide spinner immediately
+      }
+    });
+
+    // 2. Fetch fresh data in background
     fetchStats();
-  }, [fetchStats]);
+
+    // 3. Defer notifications so they don't race with primary stats load
+    const notifTimer = setTimeout(() => {
+      buildNotifications();
+    }, 2000);
+
+    return () => clearTimeout(notifTimer);
+  }, [fetchStats, buildNotifications]);
 
   // Refresh when screen comes into focus
   useEffect(() => {
@@ -83,6 +168,49 @@ export default function HomeScreen({ navigation }: any) {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3B82F6" />
         }
       >
+        {/* Notification Modal */}
+        <Modal
+          visible={notifVisible}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setNotifVisible(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setNotifVisible(false)}
+          />
+          <View style={styles.notifDrawer}>
+            <View style={styles.notifHeader}>
+              <Text style={styles.notifTitle}>Notifications</Text>
+              <TouchableOpacity onPress={() => setNotifVisible(false)}>
+                <Ionicons name="close" size={24} color="#9CA3AF" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {notifications.length === 0 ? (
+                <View style={styles.notifEmpty}>
+                  <Ionicons name="notifications-off-outline" size={48} color="#374151" />
+                  <Text style={styles.notifEmptyText}>No notifications yet</Text>
+                </View>
+              ) : (
+                notifications.map((n) => (
+                  <View key={n.id} style={styles.notifItem}>
+                    <View style={[styles.notifIconBox, { backgroundColor: n.iconColor + "20" }]}>
+                      <Ionicons name={n.icon} size={22} color={n.iconColor} />
+                    </View>
+                    <View style={styles.notifContent}>
+                      <Text style={styles.notifItemTitle}>{n.title}</Text>
+                      <Text style={styles.notifItemBody}>{n.body}</Text>
+                      <Text style={styles.notifItemTime}>{n.time}</Text>
+                    </View>
+                  </View>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        </Modal>
+
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.logoRow}>
@@ -92,8 +220,12 @@ export default function HomeScreen({ navigation }: any) {
             <Text style={styles.headerTitle}>InterviewAI</Text>
           </View>
           <View style={styles.headerIcons}>
-            <TouchableOpacity style={styles.iconButton}>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() => { setNotifVisible(true); setHasUnread(false); }}
+            >
               <Ionicons name="notifications" size={20} color="#3B82F6" />
+              {hasUnread && <View style={styles.notifBadge} />}
             </TouchableOpacity>
             <TouchableOpacity onPress={() => navigation.navigate("Profile")}>
               <View style={styles.avatarPlaceholder}>
@@ -124,22 +256,13 @@ export default function HomeScreen({ navigation }: any) {
             <Text style={styles.cardSubtitle}>
               Upload your resume and practice with AI-generated questions tailored to your experience.
             </Text>
-            <View style={styles.cardFooter}>
-              <View style={styles.sessionsRow}>
-                <View style={[styles.overlapCircle, { backgroundColor: "#60A5FA", left: 0, zIndex: 3 }]} />
-                <View style={[styles.overlapCircle, { backgroundColor: "#3B82F6", left: -10, zIndex: 2 }]} />
-                <View style={[styles.overlapCircle, { backgroundColor: "#2563EB", left: -20, zIndex: 1 }]} />
-                <Text style={styles.sessionsText}>
-                  {stats?.sessionsThisWeek || 0} sessions this week
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={styles.primaryButton}
-                onPress={() => navigation.navigate("Upload")}
-              >
-                <Text style={styles.primaryButtonText}>Start Now</Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              style={styles.primaryButton}
+              onPress={() => navigation.navigate("Upload")}
+            >
+              <Ionicons name="arrow-forward-circle" size={20} color="#fff" style={{ marginRight: 8 }} />
+              <Text style={styles.primaryButtonText}>Start Now</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -231,7 +354,30 @@ const styles = StyleSheet.create({
   headerTitle: { color: "#FFFFFF", fontSize: 20, fontWeight: "bold" },
   headerIcons: { flexDirection: "row", alignItems: "center" },
   iconButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: "#161B28", justifyContent: "center", alignItems: "center", marginRight: 12 },
+  notifBadge: { position: "absolute", top: 6, right: 10, width: 8, height: 8, borderRadius: 4, backgroundColor: "#EF4444", borderWidth: 1, borderColor: "#0A0E17" },
   avatarPlaceholder: { width: 36, height: 36, borderRadius: 18, backgroundColor: "#374151", justifyContent: "center", alignItems: "center" },
+
+  // Notification Modal
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)" },
+  notifDrawer: {
+    backgroundColor: "#0F1623",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    maxHeight: "75%",
+    borderTopWidth: 1,
+    borderColor: "#1F2937",
+  },
+  notifHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
+  notifTitle: { color: "#FFFFFF", fontSize: 20, fontWeight: "bold" },
+  notifEmpty: { alignItems: "center", paddingVertical: 40 },
+  notifEmptyText: { color: "#6B7280", fontSize: 15, marginTop: 12 },
+  notifItem: { flexDirection: "row", alignItems: "flex-start", marginBottom: 18 },
+  notifIconBox: { width: 44, height: 44, borderRadius: 12, justifyContent: "center", alignItems: "center", marginRight: 14 },
+  notifContent: { flex: 1 },
+  notifItemTitle: { color: "#FFFFFF", fontSize: 15, fontWeight: "bold", marginBottom: 3 },
+  notifItemBody: { color: "#9CA3AF", fontSize: 13, lineHeight: 18, marginBottom: 4 },
+  notifItemTime: { color: "#4B5563", fontSize: 11 },
   welcomeTitle: { color: "#FFFFFF", fontSize: 28, fontWeight: "bold", marginBottom: 8 },
   welcomeSubtitle: { color: "#9CA3AF", fontSize: 15, lineHeight: 22, paddingRight: 20, marginBottom: 30 },
 
@@ -247,8 +393,8 @@ const styles = StyleSheet.create({
   sessionsRow: { flexDirection: "row", alignItems: "center" },
   overlapCircle: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: "#101623", position: "relative" },
   sessionsText: { color: "#6B7280", fontSize: 12, marginLeft: -10 },
-  primaryButton: { backgroundColor: "#3B82F6", paddingHorizontal: 20, paddingVertical: 12, borderRadius: 10 },
-  primaryButtonText: { color: "#FFFFFF", fontWeight: "bold", fontSize: 14 },
+  primaryButton: { backgroundColor: "#3B82F6", paddingVertical: 16, borderRadius: 14, alignItems: "center", justifyContent: "center", flexDirection: "row", marginTop: 8 },
+  primaryButtonText: { color: "#FFFFFF", fontWeight: "bold", fontSize: 16 },
 
   sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16, marginTop: 10 },
   sectionTitle: { color: "#F3F4F6", fontSize: 13, fontWeight: "bold", letterSpacing: 1, marginBottom: 16 },

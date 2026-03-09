@@ -9,13 +9,13 @@ import {
   ActivityIndicator,
   TextInput,
   Modal,
-  Alert,
   RefreshControl,
   Platform,
   StatusBar,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import api from "../services/api";
+import { useCustomAlert } from "../context/AlertContext";
 
 export default function ScheduleScreen({ navigation }: any) {
   const [schedule, setSchedule] = useState<any[]>([]);
@@ -24,6 +24,7 @@ export default function ScheduleScreen({ navigation }: any) {
   const [modalVisible, setModalVisible] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [daysFromNow, setDaysFromNow] = useState("2");
+  const { showAlert } = useCustomAlert();
 
   const fetchSchedule = async () => {
     try {
@@ -50,7 +51,7 @@ export default function ScheduleScreen({ navigation }: any) {
 
   const handleCreateInterview = async () => {
     if (!newTitle.trim()) {
-      Alert.alert("Error", "Please enter a title");
+      showAlert("Error", "Please enter a title", [{ text: "OK", style: "cancel" }]);
       return;
     }
 
@@ -68,12 +69,12 @@ export default function ScheduleScreen({ navigation }: any) {
       setDaysFromNow("2");
       fetchSchedule();
     } catch (error) {
-      Alert.alert("Error", "Failed to schedule interview");
+      showAlert("Error", "Failed to schedule interview", [{ text: "OK", style: "destructive" }]);
     }
   };
 
   const handleDelete = async (id: string) => {
-    Alert.alert("Delete Interview", "Are you sure you want to remove this session?", [
+    showAlert("Delete Interview", "Are you sure you want to remove this session?", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
@@ -83,7 +84,7 @@ export default function ScheduleScreen({ navigation }: any) {
             await api.delete(`/interviews/${id}`);
             fetchSchedule();
           } catch (err) {
-            Alert.alert("Error", "Failed to delete");
+            showAlert("Error", "Failed to delete", [{ text: "OK", style: "destructive" }]);
           }
         },
       },
@@ -210,10 +211,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#1F2937",
   },
-  headerTitle: { color: "#FFFFFF", fontSize: 24, fontWeight: "bold" },
-  addBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#3B82F6", justifyContent: "center", alignItems: "center" },
+  headerBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#161B28", justifyContent: "center", alignItems: "center" },
+  headerTitle: { color: "#FFFFFF", fontSize: 20, fontWeight: "bold" },
+  addBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#3B82F6", justifyContent: "center", alignItems: "center" },
   loaderContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
-  scrollContainer: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 80 },
+  scrollContainer: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 40 },
 
   emptyState: { alignItems: "center", marginTop: 80 },
   emptyText: { color: "#9CA3AF", fontSize: 16, marginTop: 16, marginBottom: 24 },

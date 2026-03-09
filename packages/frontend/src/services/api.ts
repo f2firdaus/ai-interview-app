@@ -1,6 +1,7 @@
 import axios from "axios";
 import { Platform } from "react-native";
 import Constants from "expo-constants";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Auto-detect backend URL:
 // - Android emulator uses 10.0.2.2 to reach host machine
@@ -29,6 +30,14 @@ const api = axios.create({
 });
 
 console.log("🌐 Axios baseURL configured as:", api.defaults.baseURL);
+
+api.interceptors.request.use(async (config) => {
+  const token = await AsyncStorage.getItem("userToken");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
 
 // Add response interceptor to handle errors
 api.interceptors.response.use(

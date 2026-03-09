@@ -45,8 +45,11 @@ export default function HistoryScreen({ navigation }: any) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.navigate("Home")} style={styles.headerBtn}>
+          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>Past Interviews</Text>
-        <TouchableOpacity onPress={() => { setRefreshing(true); fetchHistory(); }}>
+        <TouchableOpacity onPress={() => { setRefreshing(true); fetchHistory(); }} style={styles.headerBtn}>
           <Ionicons name="refresh" size={24} color="#3B82F6" />
         </TouchableOpacity>
       </View>
@@ -122,7 +125,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#1F2937",
   },
-  headerTitle: { color: "#FFFFFF", fontSize: 24, fontWeight: "bold" },
+  headerBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#161B28", justifyContent: "center", alignItems: "center" },
+  headerTitle: { color: "#FFFFFF", fontSize: 20, fontWeight: "bold" },
   loaderContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   scrollContainer: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 40 },
   emptyState: { alignItems: "center", marginTop: 80 },

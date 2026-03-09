@@ -42,8 +42,8 @@ export const transcribeAudio = async (req: Request, res: Response) => {
 
     console.log(`🎤 Audio received: name=${originalName}, mime=${mimeType}, size=${audioBuffer.length} bytes`);
 
-    // Try content types in order of preference
-    const contentTypesToTry = ["audio/m4a", "audio/x-m4a", "audio/wav", "audio/webm", "audio/mpeg"];
+    // Try content types in order of preference, prioritizing the actual uploaded file's mimetype
+    const contentTypesToTry = [mimeType, "audio/amr", "audio/wav", "audio/m4a", "audio/webm", "audio/mpeg"];
 
     let lastError = "";
     for (const contentType of contentTypesToTry) {

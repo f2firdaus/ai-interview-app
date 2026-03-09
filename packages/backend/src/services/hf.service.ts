@@ -23,9 +23,10 @@ ${resumeText}
 `;
 
     let lastError: any;
-    for (let attempt = 0; attempt < 3; attempt++) {
+    // Cold start of 8B models can take up to 60-90 seconds. We'll wait up to 5 times, 15s each.
+    for (let attempt = 0; attempt < 5; attempt++) {
       try {
-        console.log(`🔄 HF attempt ${attempt + 1}/3...`);
+        console.log(`🔄 HF attempt ${attempt + 1}/5...`);
         const response = await hf.chatCompletion({
           model: "meta-llama/Meta-Llama-3-8B-Instruct",
           messages: [
@@ -78,15 +79,15 @@ ${resumeText}
       } catch (retryErr: any) {
         lastError = retryErr;
         console.error(`⚠ HF attempt ${attempt + 1} failed:`, retryErr?.message || retryErr);
-        if (attempt < 2) {
-          console.log("⏳ Waiting 5s before retry...");
-          await new Promise((r) => setTimeout(r, 5000));
+        if (attempt < 4) {
+          console.log("⏳ Model is likely sleeping. Waiting 15s before retry...");
+          await new Promise((r) => setTimeout(r, 15000));
         }
       }
     }
 
     // All retries failed
-    console.error("❌ HF ERROR after 3 attempts:", lastError?.message || lastError);
+    console.error("❌ HF ERROR after 5 attempts:", lastError?.message || lastError);
     return {
       questions: ["AI generation failed — try again"],
     };
@@ -126,9 +127,9 @@ Return ONLY JSON in this format:
 `;
 
     let lastError: any;
-    for (let attempt = 0; attempt < 3; attempt++) {
+    for (let attempt = 0; attempt < 4; attempt++) {
       try {
-        console.log(`🔄 Evaluation attempt ${attempt + 1}/3...`);
+        console.log(`🔄 Evaluation attempt ${attempt + 1}/4...`);
         const response = await hf.chatCompletion({
           model: "meta-llama/Meta-Llama-3-8B-Instruct",
           messages: [
@@ -157,15 +158,15 @@ Return ONLY JSON in this format:
       } catch (retryErr: any) {
         lastError = retryErr;
         console.error(`⚠ Evaluation attempt ${attempt + 1} failed:`, retryErr?.message || retryErr);
-        if (attempt < 2) {
-          console.log("⏳ Waiting 3s before retry...");
-          await new Promise((r) => setTimeout(r, 3000));
+        if (attempt < 3) {
+          console.log("⏳ Evaluation Model sleeping. Waiting 10s before retry...");
+          await new Promise((r) => setTimeout(r, 10000));
         }
       }
     }
 
     // All retries failed
-    console.error("❌ Evaluation failed after 3 attempts:", lastError?.message);
+    console.error("❌ Evaluation failed after 4 attempts:", lastError?.message);
     return {
       score: 5,
       strength: "AI evaluation temporarily unavailable",
