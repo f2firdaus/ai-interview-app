@@ -5,7 +5,6 @@ import { authenticate } from "../../middleware/auth.middleware";
 
 const router = Router();
 
-// Limit auth requests to 10 per 15 minutes per IP to prevent brute force attacks
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 10,
@@ -14,12 +13,12 @@ const authLimiter = rateLimit({
     legacyHeaders: false,
 });
 
-router.post("/request", authLimiter, ctrl.requestOtp);
-router.post("/verify", authLimiter, ctrl.loginOtp);
 router.post("/signup", authLimiter, ctrl.signup);
 router.post("/login", authLimiter, ctrl.loginEmail);
+router.post("/forgot-password", authLimiter, ctrl.forgotPassword);
 router.get("/me", authenticate, ctrl.getMe);
 router.put("/me", authenticate, ctrl.updateMe);
 router.put("/password", authenticate, ctrl.changePassword);
+router.delete("/account", authenticate, ctrl.deleteAccount);
 
 export default router;

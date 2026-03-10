@@ -42,10 +42,16 @@ api.interceptors.request.use(async (config) => {
 // Add response interceptor to handle errors
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     if (error.response) {
       console.log("API Error Data:", error.response.data);
       console.log("API Error Status:", error.response.status);
+
+      // Auto-logout on expired/invalid token
+      if (error.response.status === 401) {
+        await AsyncStorage.removeItem("userToken");
+        await AsyncStorage.removeItem("cached_stats");
+      }
     } else if (error.request) {
       console.log("API No Response:", error.request._url || error.message);
     } else {

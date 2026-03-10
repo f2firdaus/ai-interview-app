@@ -45,12 +45,9 @@ export default function HistoryScreen({ navigation }: any) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.navigate("Home")} style={styles.headerBtn}>
-          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
         <Text style={styles.headerTitle}>Past Interviews</Text>
         <TouchableOpacity onPress={() => { setRefreshing(true); fetchHistory(); }} style={styles.headerBtn}>
-          <Ionicons name="refresh" size={24} color="#3B82F6" />
+          <Ionicons name="refresh" size={22} color="#3B82F6" />
         </TouchableOpacity>
       </View>
 

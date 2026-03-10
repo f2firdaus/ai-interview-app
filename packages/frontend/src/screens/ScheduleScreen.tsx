@@ -24,7 +24,23 @@ export default function ScheduleScreen({ navigation }: any) {
   const [modalVisible, setModalVisible] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [daysFromNow, setDaysFromNow] = useState("2");
+  const [category, setCategory] = useState("general");
+  const [difficulty, setDifficulty] = useState("medium");
   const { showAlert } = useCustomAlert();
+
+  const CATEGORIES = [
+    { key: "general", label: "General", icon: "apps" },
+    { key: "technical", label: "Technical", icon: "code-slash" },
+    { key: "behavioral", label: "Behavioral", icon: "people" },
+    { key: "system-design", label: "System Design", icon: "git-network" },
+    { key: "hr", label: "HR Round", icon: "briefcase" },
+  ];
+
+  const DIFFICULTIES = [
+    { key: "easy", label: "Easy", color: "#10B981" },
+    { key: "medium", label: "Medium", color: "#F59E0B" },
+    { key: "hard", label: "Hard", color: "#EF4444" },
+  ];
 
   const fetchSchedule = async () => {
     try {
@@ -62,11 +78,15 @@ export default function ScheduleScreen({ navigation }: any) {
       await api.post("/interviews", {
         title: newTitle.trim(),
         date: futureDate.toISOString(),
+        category,
+        difficulty,
       });
 
       setModalVisible(false);
       setNewTitle("");
       setDaysFromNow("2");
+      setCategory("general");
+      setDifficulty("medium");
       fetchSchedule();
     } catch (error) {
       showAlert("Error", "Failed to schedule interview", [{ text: "OK", style: "destructive" }]);
@@ -135,7 +155,14 @@ export default function ScheduleScreen({ navigation }: any) {
                   </View>
                   <View style={styles.sessionInfo}>
                     <Text style={styles.sessionTitle}>{item.title}</Text>
-                    <Text style={styles.sessionTime}>With AI Coach • {time}</Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4 }}>
+                      <Text style={styles.sessionTime}>With AI Coach • {time}</Text>
+                      {item.category && item.category !== "general" && (
+                        <View style={{ backgroundColor: "#15244A", borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginLeft: 8 }}>
+                          <Text style={{ color: "#3B82F6", fontSize: 10, fontWeight: "bold" }}>{item.category.toUpperCase()}</Text>
+                        </View>
+                      )}
+                    </View>
                   </View>
                   <View style={styles.actionBtns}>
                     <TouchableOpacity style={styles.joinBtn} onPress={() => navigation.navigate("Upload")}>
@@ -176,6 +203,42 @@ export default function ScheduleScreen({ navigation }: any) {
               value={daysFromNow}
               onChangeText={setDaysFromNow}
             />
+
+            <Text style={styles.inputLabel}>Category</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+              {CATEGORIES.map((c) => (
+                <TouchableOpacity
+                  key={c.key}
+                  onPress={() => setCategory(c.key)}
+                  style={{
+                    flexDirection: "row", alignItems: "center",
+                    paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, marginRight: 8,
+                    backgroundColor: category === c.key ? "#1E3A8A" : "#161B28",
+                    borderWidth: 1, borderColor: category === c.key ? "#3B82F6" : "#1F2937",
+                  }}
+                >
+                  <Ionicons name={c.icon as any} size={16} color={category === c.key ? "#3B82F6" : "#6B7280"} style={{ marginRight: 6 }} />
+                  <Text style={{ color: category === c.key ? "#FFFFFF" : "#9CA3AF", fontSize: 13, fontWeight: "600" }}>{c.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <Text style={styles.inputLabel}>Difficulty</Text>
+            <View style={{ flexDirection: "row", marginBottom: 16 }}>
+              {DIFFICULTIES.map((d) => (
+                <TouchableOpacity
+                  key={d.key}
+                  onPress={() => setDifficulty(d.key)}
+                  style={{
+                    flex: 1, alignItems: "center", paddingVertical: 10, borderRadius: 10, marginRight: 8,
+                    backgroundColor: difficulty === d.key ? d.color + "22" : "#161B28",
+                    borderWidth: 1, borderColor: difficulty === d.key ? d.color : "#1F2937",
+                  }}
+                >
+                  <Text style={{ color: difficulty === d.key ? d.color : "#9CA3AF", fontSize: 13, fontWeight: "bold" }}>{d.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
 
             <View style={styles.modalBtnRow}>
               <TouchableOpacity

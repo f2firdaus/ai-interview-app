@@ -113,6 +113,25 @@ export default function LoginScreen({ navigation }: any) {
               </TouchableOpacity>
             </View>
 
+            {/* Forgot Password */}
+            <TouchableOpacity
+              onPress={async () => {
+                if (!email) {
+                  showAlert("Error", "Please enter your email address first.", [{ text: "OK" }]);
+                  return;
+                }
+                try {
+                  await api.post("/auth/forgot-password", { email });
+                  showAlert("Check Email", "If that email exists, a password reset has been sent. Check your email or contact support.", [{ text: "OK" }]);
+                } catch {
+                  showAlert("Success", "If that email exists, a password reset has been processed.", [{ text: "OK" }]);
+                }
+              }}
+              style={{ alignSelf: "flex-end", marginBottom: 20, marginTop: -10 }}
+            >
+              <Text style={{ color: "#3B82F6", fontSize: 14 }}>Forgot Password?</Text>
+            </TouchableOpacity>
+
             {/* Button */}
             <TouchableOpacity style={styles.submitButton} onPress={handleLogin} disabled={loading}>
               <Text style={styles.submitButtonText}>{loading ? "Logging in..." : "Log In"}</Text>

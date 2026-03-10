@@ -7,6 +7,7 @@ const questionDetailSchema = new mongoose.Schema({
   strength: { type: String, default: "" },
   improvement: { type: String, default: "" },
   betterAnswer: { type: String, default: "" },
+  timeSpent: { type: Number, default: 0 }, // seconds spent on this question
 }, { _id: false });
 
 const schema = new mongoose.Schema({
@@ -17,6 +18,17 @@ const schema = new mongoose.Schema({
   score: { type: Number },
   feedback: { type: String },
   questions: [questionDetailSchema],
+  category: {
+    type: String,
+    enum: ["technical", "behavioral", "system-design", "hr", "general"],
+    default: "general",
+  },
+  difficulty: {
+    type: String,
+    enum: ["easy", "medium", "hard"],
+    default: "medium",
+  },
+  duration: { type: Number, default: 0 }, // total seconds
   createdAt: { type: Date, default: Date.now }
 });
 

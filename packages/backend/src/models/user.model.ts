@@ -7,8 +7,10 @@ const schema = new mongoose.Schema({
   phone: { type: String, unique: true, sparse: true },
   otp: String,
   otpExpiry: Date,
+  resumeText: { type: String, default: "" },
+  resumeFileName: { type: String, default: "" },
+  resumeUploadedAt: { type: Date },
   createdAt: { type: Date, default: Date.now }
 });
 
 export default mongoose.model("User", schema);
-

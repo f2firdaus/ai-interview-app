@@ -12,6 +12,7 @@ import {
   Platform,
   StatusBar,
   KeyboardAvoidingView,
+  RefreshControl,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import api from "../services/api";
@@ -22,6 +23,7 @@ export default function ProfileScreen({ navigation }: any) {
   const [stats, setStats] = useState<any>(null);
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Edit Profile Modal
   const [editVisible, setEditVisible] = useState(false);
@@ -35,6 +37,11 @@ export default function ProfileScreen({ navigation }: any) {
   const [newPw, setNewPw] = useState("");
   const [confirmPw, setConfirmPw] = useState("");
   const [pwSaving, setPwSaving] = useState(false);
+
+  // Delete Account
+  const [deletePwVisible, setDeletePwVisible] = useState(false);
+  const [deletePw, setDeletePw] = useState("");
+  const [deleteSaving, setDeleteSaving] = useState(false);
 
   const { showAlert } = useCustomAlert();
 
@@ -58,6 +65,19 @@ export default function ProfileScreen({ navigation }: any) {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Refresh on screen focus
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("focus", () => {
+      fetchData();
+    });
+    return unsubscribe;
+  }, [navigation]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchData().finally(() => setRefreshing(false));
+  };
 
   const handleLogout = () => {
     showAlert(
@@ -118,6 +138,44 @@ export default function ProfileScreen({ navigation }: any) {
       showAlert("Error", err.response?.data?.error || "Failed to change password.", [{ text: "OK" }]);
     } finally {
       setPwSaving(false);
+    }
+  };
+
+  const handleDeleteAccount = () => {
+    showAlert(
+      "Delete Account",
+      "This will permanently delete your account and all data. This action CANNOT be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete Forever",
+          style: "destructive",
+          onPress: () => {
+            // Ask for password confirmation
+            setDeletePwVisible(true);
+          },
+        },
+      ]
+    );
+  };
+
+  const confirmDeleteAccount = async () => {
+    if (!deletePw) {
+      showAlert("Error", "Please enter your password.", [{ text: "OK" }]);
+      return;
+    }
+    setDeleteSaving(true);
+    try {
+      await api.delete("/auth/account", { data: { password: deletePw } });
+      await AsyncStorage.removeItem("userToken");
+      await AsyncStorage.removeItem("cached_stats");
+      navigation.reset({ index: 0, routes: [{ name: "Login" }] });
+    } catch (err: any) {
+      showAlert("Error", err.response?.data?.error || "Failed to delete account.", [{ text: "OK" }]);
+    } finally {
+      setDeleteSaving(false);
+      setDeletePwVisible(false);
+      setDeletePw("");
     }
   };
 
@@ -185,7 +243,9 @@ export default function ProfileScreen({ navigation }: any) {
         </KeyboardAvoidingView>
       </Modal>
 
-      <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3B82F6" />}
+      >
         {/* Header */}
         <View style={styles.headerRow}>
           <Text style={styles.headerTitle}>Profile</Text>
@@ -275,6 +335,36 @@ export default function ProfileScreen({ navigation }: any) {
           <Text style={styles.logoutText}>Log Out</Text>
         </TouchableOpacity>
 
+        {/* Delete Account */}
+        <TouchableOpacity style={styles.deleteAccountBtn} onPress={handleDeleteAccount}>
+          <Ionicons name="trash-outline" size={18} color="#6B7280" style={{ marginRight: 8 }} />
+          <Text style={styles.deleteAccountText}>Delete Account</Text>
+        </TouchableOpacity>
+
+        {/* Delete Confirmation Modal */}
+        <Modal visible={deletePwVisible} transparent animationType="fade" onRequestClose={() => setDeletePwVisible(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.deleteConfirmBox}>
+              <Ionicons name="warning" size={40} color="#EF4444" style={{ marginBottom: 16 }} />
+              <Text style={styles.modalTitle}>Enter Password to Confirm</Text>
+              <TextInput
+                style={styles.textInput}
+                value={deletePw}
+                onChangeText={setDeletePw}
+                placeholder="Your current password"
+                placeholderTextColor="#4B5563"
+                secureTextEntry
+              />
+              <TouchableOpacity style={styles.deleteConfirmBtn} onPress={confirmDeleteAccount} disabled={deleteSaving}>
+                {deleteSaving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Delete My Account</Text>}
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => { setDeletePwVisible(false); setDeletePw(""); }} style={{ marginTop: 14 }}>
+                <Text style={{ color: "#9CA3AF", fontSize: 15 }}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
         <Text style={styles.versionText}>AI Interview Coach v1.0.0</Text>
       </ScrollView>
     </SafeAreaView>
@@ -330,4 +420,9 @@ const styles = StyleSheet.create({
   lockedEmailRow: { flexDirection: "row", alignItems: "center", backgroundColor: "#0D1219", borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, borderWidth: 1, borderColor: "#1F2937", marginBottom: 8 },
   lockedEmailText: { color: "#4B5563", fontSize: 15, flex: 1 },
   lockedEmailHint: { color: "#374151", fontSize: 12, marginBottom: 16 },
+
+  deleteAccountBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", marginBottom: 30, paddingVertical: 10 },
+  deleteAccountText: { color: "#6B7280", fontSize: 14 },
+  deleteConfirmBox: { backgroundColor: "#101623", borderRadius: 20, padding: 28, alignItems: "center", marginHorizontal: 30, borderWidth: 1, borderColor: "#1F2937" },
+  deleteConfirmBtn: { backgroundColor: "#EF4444", height: 52, borderRadius: 14, justifyContent: "center", alignItems: "center", width: "100%", marginTop: 8 },
 });

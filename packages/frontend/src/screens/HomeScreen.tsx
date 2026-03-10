@@ -272,7 +272,7 @@ export default function HomeScreen({ navigation }: any) {
           <View style={styles.statsCard}>
             <Ionicons name="bar-chart" size={24} color="#3B82F6" style={styles.statsIcon} />
             <Text style={styles.statsLabel}>Avg. Score</Text>
-            <Text style={styles.statsValue}>{stats?.avgScore || 0}%</Text>
+            <Text style={styles.statsValue}>{stats?.avgScore || 0}/10</Text>
             <Text style={styles.statsGrowth}>
               {stats && stats.totalCompleted > 0 ? "Based on all interviews" : "No data yet"}
             </Text>
@@ -282,6 +282,26 @@ export default function HomeScreen({ navigation }: any) {
             <Text style={styles.statsLabel}>Completed</Text>
             <Text style={styles.statsValue}>{stats?.totalCompleted || 0}</Text>
             <Text style={styles.statsSublabel}>Total interviews</Text>
+          </View>
+        </View>
+        <View style={styles.performanceRow}>
+          <View style={styles.statsCard}>
+            <Ionicons name="flame" size={24} color="#F59E0B" style={styles.statsIcon} />
+            <Text style={styles.statsLabel}>Streak</Text>
+            <Text style={styles.statsValue}>{(stats as any)?.streak || 0}🔥</Text>
+            <Text style={styles.statsSublabel}>Days in a row</Text>
+          </View>
+          <View style={styles.statsCard}>
+            <Ionicons name="trending-up" size={24} color="#10B981" style={styles.statsIcon} />
+            <Text style={styles.statsLabel}>Focus Area</Text>
+            <Text style={styles.statsValue} numberOfLines={1}>
+              {(stats as any)?.categoryBreakdown?.[0]?.category || "—"}
+            </Text>
+            <Text style={styles.statsSublabel}>
+              {(stats as any)?.categoryBreakdown?.[0]
+                ? `Avg ${(stats as any).categoryBreakdown[0].avgScore}/10`
+                : "No data yet"}
+            </Text>
           </View>
         </View>
 
