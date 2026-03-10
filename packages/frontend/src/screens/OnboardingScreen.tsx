@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
     nextBtn: {
         flexDirection: "row",
         height: 56,
-        borderRadius: 16,
+        borderRadius: 14,
         justifyContent: "center",
         alignItems: "center",
         width: "100%",

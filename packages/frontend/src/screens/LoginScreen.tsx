@@ -19,13 +19,19 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 export default function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const { showAlert } = useCustomAlert();
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      showAlert("Error", "Please fill in all fields", [{ text: "OK", style: "cancel" }]);
+    setErrors({});
+    const newErrors: any = {};
+    if (!email) newErrors.email = "Email is required";
+    if (!password) newErrors.password = "Password is required";
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
 
@@ -75,7 +81,7 @@ export default function LoginScreen({ navigation }: any) {
 
             {/* Email Input */}
             <Text style={styles.inputLabel}>EMAIL ADDRESS</Text>
-            <View style={styles.inputContainer}>
+            <View style={[styles.inputContainer, errors.email ? { borderColor: "#EF4444", marginBottom: 8 } : {}]}>
               <Ionicons name="mail" size={20} color="#6B7280" style={styles.inputIcon} />
               <TextInput
                 style={styles.textInput}
@@ -84,13 +90,14 @@ export default function LoginScreen({ navigation }: any) {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(val) => { setEmail(val); setErrors({ ...errors, email: undefined }); }}
               />
             </View>
+            {errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
 
             {/* Password Input */}
             <Text style={styles.inputLabel}>PASSWORD</Text>
-            <View style={styles.inputContainer}>
+            <View style={[styles.inputContainer, errors.password ? { borderColor: "#EF4444", marginBottom: 8 } : {}]}>
               <Ionicons name="lock-closed" size={20} color="#6B7280" style={styles.inputIcon} />
               <TextInput
                 style={styles.textInput}
@@ -99,7 +106,7 @@ export default function LoginScreen({ navigation }: any) {
                 secureTextEntry={!isPasswordVisible}
                 autoCapitalize="none"
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={(val) => { setPassword(val); setErrors({ ...errors, password: undefined }); }}
               />
               <TouchableOpacity
                 onPress={() => setIsPasswordVisible(!isPasswordVisible)}
@@ -112,12 +119,13 @@ export default function LoginScreen({ navigation }: any) {
                 />
               </TouchableOpacity>
             </View>
+            {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
 
             {/* Forgot Password */}
             <TouchableOpacity
               onPress={async () => {
                 if (!email) {
-                  showAlert("Error", "Please enter your email address first.", [{ text: "OK" }]);
+                  setErrors({ ...errors, email: "Email is required for password reset" });
                   return;
                 }
                 try {
@@ -264,5 +272,12 @@ const styles = StyleSheet.create({
   linkText: {
     color: "#3B82F6",
     fontWeight: "bold",
+  },
+  errorText: {
+    color: "#EF4444",
+    fontSize: 13,
+    marginBottom: 20,
+    marginTop: -4,
+    marginLeft: 4,
   },
 });

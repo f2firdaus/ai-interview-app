@@ -366,7 +366,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#0A0E17",
     paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
   },
-  scrollContainer: { paddingHorizontal: 20, paddingBottom: 40, paddingTop: 10 },
+  scrollContainer: { paddingHorizontal: 24, paddingBottom: 40, paddingTop: 10 },
   loaderContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 30 },
   logoRow: { flexDirection: "row", alignItems: "center" },

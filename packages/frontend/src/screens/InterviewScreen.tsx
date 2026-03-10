@@ -176,7 +176,6 @@ export default function InterviewScreen({ route, navigation }: any) {
 
       const res = await api.post("/ai/transcribe", formData, {
         headers: { "Content-Type": "multipart/form-data" },
-        transformRequest: (data) => data, // Prevents Axios from corrupting the React Native FormData
       });
 
       console.log("📥 Transcription response:", JSON.stringify(res.data));
@@ -416,6 +415,13 @@ export default function InterviewScreen({ route, navigation }: any) {
         </View>
 
         {/* Question */}
+        <View style={{ marginBottom: 12, flexDirection: "row", alignItems: "center" }}>
+          <View style={{ backgroundColor: "#3B82F620", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: "#3B82F640" }}>
+            <Text style={{ color: "#3B82F6", fontWeight: "bold", fontSize: 13, letterSpacing: 1 }}>
+              QUESTION {currentIndex + 1} OF {questions.length}
+            </Text>
+          </View>
+        </View>
         <Text style={styles.qText}>{questions[currentIndex]}</Text>
 
         {/* Answer Input */}

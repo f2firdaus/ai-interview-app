@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        paddingHorizontal: 20,
+        paddingHorizontal: 24,
         paddingTop: 16,
         paddingBottom: 16,
         borderBottomWidth: 1,
@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
     },
     backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#161B28", justifyContent: "center", alignItems: "center" },
     headerTitle: { color: "#FFFFFF", fontSize: 18, fontWeight: "bold", flex: 1, textAlign: "center", marginHorizontal: 12 },
-    scrollContainer: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 40 },
+    scrollContainer: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 40 },
 
     scoreCard: {
         flexDirection: "row",

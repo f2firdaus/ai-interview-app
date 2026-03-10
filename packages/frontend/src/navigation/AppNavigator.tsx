@@ -16,6 +16,7 @@ import HomeScreen from "../screens/HomeScreen";
 import HistoryScreen from "../screens/HistoryScreen";
 import ScheduleScreen from "../screens/ScheduleScreen";
 import ProfileScreen from "../screens/ProfileScreen";
+import OnboardingScreen from "../screens/OnboardingScreen";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -63,11 +64,16 @@ function MainTabs() {
 }
 
 export default function AppNavigator() {
-  const [initRoute, setInitRoute] = useState<"Login" | "Main" | null>(null);
+  const [initRoute, setInitRoute] = useState<"Onboarding" | "Login" | "Main" | null>(null);
 
   useEffect(() => {
-    AsyncStorage.getItem("userToken").then((token) => {
-      if (token) {
+    Promise.all([
+      AsyncStorage.getItem("onboarding_done"),
+      AsyncStorage.getItem("userToken"),
+    ]).then(([onboardingDone, token]) => {
+      if (!onboardingDone) {
+        setInitRoute("Onboarding");
+      } else if (token) {
         setInitRoute("Main");
       } else {
         setInitRoute("Login");
@@ -91,13 +97,21 @@ export default function AppNavigator() {
   return (
     <NavigationContainer theme={CustomDarkTheme}>
       <Stack.Navigator
-        initialRouteName={initRoute}
+        initialRouteName={initRoute as any}
         screenOptions={{
           headerShown: false,
           contentStyle: { backgroundColor: '#0A0E17' },
           animation: 'slide_from_right'
         }}
       >
+        <Stack.Screen name="Onboarding">
+          {(props) => <OnboardingScreen {...props} onDone={() => {
+            AsyncStorage.getItem("userToken").then((token) => {
+              if (token) props.navigation.replace("Main");
+              else props.navigation.replace("Login");
+            });
+          }} />}
+        </Stack.Screen>
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Signup" component={SignupScreen} />
         <Stack.Screen name="Main" component={MainTabs} />

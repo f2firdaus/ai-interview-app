@@ -2,6 +2,7 @@ import User from "../../models/user.model";
 import Interview from "../../models/interview.model";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
+import nodemailer from "nodemailer";
 
 const isStrongPassword = (pass: string) => {
   const strongRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d@$!%*?&]{8,}$/;
@@ -79,8 +80,39 @@ export const resetPassword = async (email: string) => {
   user.password = await bcrypt.hash(tempPw, salt);
   await user.save();
 
-  // In production, send this via email. For now, log it:
-  console.log(`🔑 Password reset for ${email}: ${tempPw}`);
+  // Send the actual email
+  try {
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+    const mailOptions = {
+      from: `"HireAI Support" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: "Your New Password for HireAI",
+      text: `Hello,
+
+Your password has been successfully reset.
+
+Here is your new temporary login password: ${tempPw}
+
+Please log in using this password. Make sure to change your password immediately from your Profile Settings once logged in.
+
+Best,
+The HireAI Team`,
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log(`✅ Password reset email successfully sent to: ${email}`);
+  } catch (error) {
+    console.error(`❌ Failed to send password reset email to ${email}:`, error);
+    // Even if the email fails, we log it for debug purposes.
+    console.log(`Fallback Terminal Output - 🔑 Password reset for ${email}: ${tempPw}`);
+  }
 };
 
 export const deleteAccount = async (id: string, password: string) => {

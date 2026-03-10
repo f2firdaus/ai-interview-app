@@ -55,7 +55,6 @@ const UploadScreen = ({ navigation }: any) => {
             headers: {
               "Content-Type": "multipart/form-data",
             },
-            transformRequest: (data) => data,
           });
 
           break; // Success! Break out of the retry loop.

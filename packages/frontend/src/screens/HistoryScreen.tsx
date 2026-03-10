@@ -125,7 +125,7 @@ const styles = StyleSheet.create({
   headerBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#161B28", justifyContent: "center", alignItems: "center" },
   headerTitle: { color: "#FFFFFF", fontSize: 20, fontWeight: "bold" },
   loaderContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
-  scrollContainer: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 40 },
+  scrollContainer: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 40 },
   emptyState: { alignItems: "center", marginTop: 80 },
   emptyText: { color: "#9CA3AF", fontSize: 16, marginTop: 16 },
   emptySubtext: { color: "#6B7280", fontSize: 13, marginTop: 8, textAlign: "center", paddingHorizontal: 40 },
@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: "#101623",
     borderRadius: 16,
-    padding: 20,
+    padding: 16,
     marginBottom: 16,
     borderWidth: 1,
     borderColor: "#1F2937",

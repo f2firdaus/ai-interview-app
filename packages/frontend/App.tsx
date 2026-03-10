@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import { View, Text } from 'react-native';
 import AppNavigator from './src/navigation/AppNavigator';
-import { AuthProvider } from './src/context/AuthContext';
 import { AlertProvider } from './src/context/AlertContext';
 import { enableFreeze, enableScreens } from "react-native-screens";
 
@@ -12,9 +11,7 @@ enableScreens(false);
 export default function App() {
   return (
     <AlertProvider>
-      <AuthProvider>
-        <AppNavigator />
-      </AuthProvider>
+      <AppNavigator />
     </AlertProvider>
   );
 }

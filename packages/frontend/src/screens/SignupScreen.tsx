@@ -21,13 +21,20 @@ export default function SignupScreen({ navigation }: any) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [errors, setErrors] = useState<{ name?: string; email?: string; password?: string }>({});
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const { showAlert } = useCustomAlert();
 
   const handleCreateAccount = async () => {
-    if (!name || !email || !password) {
-      showAlert("Error", "Please fill in all fields", [{ text: "OK", style: "cancel" }]);
+    setErrors({});
+    const newErrors: any = {};
+    if (!name) newErrors.name = "Full Name is required";
+    if (!email) newErrors.email = "Email format is required";
+    if (!password) newErrors.password = "Password is required";
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
 
@@ -88,49 +95,51 @@ export default function SignupScreen({ navigation }: any) {
             {/* Full Name */}
             <View style={styles.inputWrapper}>
               <Text style={styles.inputLabel}>Full Name</Text>
-              <View style={styles.inputContainer}>
+              <View style={[styles.inputContainer, errors.name ? { borderColor: "#EF4444" } : {}]}>
                 <Ionicons name="person" size={20} color="#6B7280" style={styles.inputIcon} />
                 <TextInput
                   style={styles.textInput}
                   placeholder="John Doe"
                   placeholderTextColor="#6B7280"
                   value={name}
-                  onChangeText={setName}
+                  onChangeText={(val) => { setName(val); setErrors({ ...errors, name: undefined }); }}
                   autoCorrect={false}
                   autoCapitalize="words"
                 />
               </View>
+              {errors.name ? <Text style={styles.errorText}>{errors.name}</Text> : null}
             </View>
 
             {/* Email Address */}
             <View style={styles.inputWrapper}>
               <Text style={styles.inputLabel}>Email Address</Text>
-              <View style={styles.inputContainer}>
+              <View style={[styles.inputContainer, errors.email ? { borderColor: "#EF4444" } : {}]}>
                 <Ionicons name="mail" size={20} color="#6B7280" style={styles.inputIcon} />
                 <TextInput
                   style={styles.textInput}
                   placeholder="name@example.com"
                   placeholderTextColor="#6B7280"
                   value={email}
-                  onChangeText={setEmail}
+                  onChangeText={(val) => { setEmail(val); setErrors({ ...errors, email: undefined }); }}
                   autoCapitalize="none"
                   keyboardType="email-address"
                   autoCorrect={false}
                 />
               </View>
+              {errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
             </View>
 
             {/* Password */}
             <View style={styles.inputWrapper}>
               <Text style={styles.inputLabel}>Password</Text>
-              <View style={styles.inputContainer}>
+              <View style={[styles.inputContainer, errors.password ? { borderColor: "#EF4444" } : {}]}>
                 <Ionicons name="lock-closed" size={20} color="#6B7280" style={styles.inputIcon} />
                 <TextInput
                   style={styles.textInput}
                   placeholder="••••••••"
                   placeholderTextColor="#6B7280"
                   value={password}
-                  onChangeText={setPassword}
+                  onChangeText={(val) => { setPassword(val); setErrors({ ...errors, password: undefined }); }}
                   secureTextEntry={!isPasswordVisible}
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -146,6 +155,7 @@ export default function SignupScreen({ navigation }: any) {
                   />
                 </TouchableOpacity>
               </View>
+              {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
             </View>
           </View>
 
@@ -285,5 +295,11 @@ const styles = StyleSheet.create({
   },
   linkText: {
     color: "#3B82F6",
+  },
+  errorText: {
+    color: "#EF4444",
+    fontSize: 13,
+    marginTop: 8,
+    marginLeft: 4,
   },
 });

@@ -155,10 +155,10 @@ export default function ScheduleScreen({ navigation }: any) {
                   </View>
                   <View style={styles.sessionInfo}>
                     <Text style={styles.sessionTitle}>{item.title}</Text>
-                    <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4 }}>
-                      <Text style={styles.sessionTime}>With AI Coach • {time}</Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4, flexWrap: "wrap", gap: 6 }}>
+                      <Text style={styles.sessionTime}>With AI • {time}</Text>
                       {item.category && item.category !== "general" && (
-                        <View style={{ backgroundColor: "#15244A", borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginLeft: 8 }}>
+                        <View style={{ backgroundColor: "#15244A", borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
                           <Text style={{ color: "#3B82F6", fontSize: 10, fontWeight: "bold" }}>{item.category.toUpperCase()}</Text>
                         </View>
                       )}
@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
   headerTitle: { color: "#FFFFFF", fontSize: 20, fontWeight: "bold" },
   addBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#3B82F6", justifyContent: "center", alignItems: "center" },
   loaderContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
-  scrollContainer: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 40 },
+  scrollContainer: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 40 },
 
   emptyState: { alignItems: "center", marginTop: 80 },
   emptyText: { color: "#9CA3AF", fontSize: 16, marginTop: 16, marginBottom: 24 },
