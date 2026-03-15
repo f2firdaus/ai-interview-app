@@ -42,6 +42,7 @@ export default function InterviewScreen({ route, navigation }: any) {
   const { showAlert } = useCustomAlert();
 
   const recordingRef = useRef<Audio.Recording | null>(null);
+  const latestResultRef = useRef<FeedbackItem | null>(null);
 
 
   // --- Recording Functions (using expo-av) ---
@@ -208,19 +209,18 @@ export default function InterviewScreen({ route, navigation }: any) {
       const fb = res.data.feedback;
       setFeedback(fb);
 
-      setAllResults((prev) => [
-        ...prev,
-        {
-          question: questions[currentIndex],
-          answer,
-          score: fb.score || 0,
-          strength: fb.strength || "",
-          improvement: fb.improvement || "",
-          betterAnswer: fb.betterAnswer || "",
-        },
-      ]);
+      const newResult: FeedbackItem = {
+        question: questions[currentIndex],
+        answer,
+        score: fb.score || 0,
+        strength: fb.strength || "",
+        improvement: fb.improvement || "",
+        betterAnswer: fb.betterAnswer || "",
+      };
 
-      // Score feedback saved silently (no speech)
+      // Store the latest result ref so handleNext can access it synchronously
+      latestResultRef.current = newResult;
+      setAllResults((prev) => [...prev, newResult]);
     } catch (e) {
       console.error(e);
       showAlert("Error", "Evaluation failed", [{ text: "OK", style: "destructive" }]);
@@ -265,8 +265,11 @@ export default function InterviewScreen({ route, navigation }: any) {
   const handleNext = () => {
     if (currentIndex + 1 >= questions.length) {
       setIsComplete(true);
-      // Save all results (the current feedback was already added to allResults)
-      const finalResults = [...allResults];
+      // Use the synchronously-captured latest result to avoid React async state race condition
+      const finalResults = latestResultRef.current
+        ? [...allResults.filter(r => r.question !== latestResultRef.current!.question), latestResultRef.current]
+        : [...allResults];
+      latestResultRef.current = null;
       saveResults(finalResults);
     } else {
       setCurrentIndex(currentIndex + 1);
@@ -367,7 +370,7 @@ export default function InterviewScreen({ route, navigation }: any) {
             <View style={{ marginTop: 20, marginBottom: 40 }}>
               <TouchableOpacity
                 style={[styles.submitBtn, { marginBottom: 12 }]}
-                onPress={() => navigation.navigate("Upload")}
+                onPress={() => navigation.replace("Upload")}
               >
                 <Text style={styles.btnText}>Start New Interview</Text>
               </TouchableOpacity>
