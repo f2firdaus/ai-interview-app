@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import pdfParse from "pdf-parse";
-import { generateQuestions } from "../../services/hf.service";
+import { generateQuestions } from "../../services/gemini.service";
 import User from "../../models/user.model";
 
 export const uploadResume = async (req: Request, res: Response) => {

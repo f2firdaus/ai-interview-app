@@ -391,116 +391,118 @@ export default function InterviewScreen({ route, navigation }: any) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor="#0f172a" />
-      <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-
-        {/* Progress Bar & Exit Button */}
+      <View style={styles.container}>
+        {/* Header: Exit + Progress */}
         <View style={styles.topHeader}>
           <TouchableOpacity
             onPress={() => navigation.navigate("Main")}
             style={styles.exitBtn}
           >
-            <Ionicons name="close" size={24} color="#94a3b8" />
+            <Ionicons name="close" size={22} color="#94a3b8" />
           </TouchableOpacity>
-
-          <View style={styles.progressContainer}>
-            <View style={styles.progressBar}>
-              <View
-                style={[
-                  styles.progressFill,
-                  { width: `${((currentIndex + 1) / questions.length) * 100}%` as any },
-                ]}
-              />
-            </View>
-            <Text style={styles.progressText}>
-              {currentIndex + 1} / {questions.length}
-            </Text>
+          <View style={styles.progressBar}>
+            <View
+              style={[
+                styles.progressFill,
+                { width: `${((currentIndex + 1) / questions.length) * 100}%` as any },
+              ]}
+            />
           </View>
-        </View>
-
-        {/* Question */}
-        <View style={{ marginBottom: 12, flexDirection: "row", alignItems: "center" }}>
-          <View style={{ backgroundColor: "#3B82F620", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: "#3B82F640" }}>
-            <Text style={{ color: "#3B82F6", fontWeight: "bold", fontSize: 13, letterSpacing: 1 }}>
-              QUESTION {currentIndex + 1} OF {questions.length}
-            </Text>
-          </View>
-        </View>
-        <Text style={styles.qText}>{questions[currentIndex]}</Text>
-
-        {/* Answer Input */}
-        <TextInput
-          style={styles.input}
-          multiline
-          value={answer}
-          onChangeText={setAnswer}
-          placeholder="Your answer will appear here..."
-          placeholderTextColor="#64748b"
-        />
-
-        {/* Mic Button */}
-        <View style={styles.micContainer}>
-          <TouchableOpacity
-            style={[styles.micBtn, isRecording && styles.micActive]}
-            onPress={toggleRecording}
-            disabled={isProcessing}
-          >
-            {isProcessing ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Ionicons
-                name={isRecording ? "stop" : "mic"}
-                size={32}
-                color="#fff"
-              />
-            )}
-          </TouchableOpacity>
-          <Text style={styles.hintText}>
-            {isProcessing ? "Processing..." : isRecording ? "Tap to Stop" : "Tap to Speak"}
+          <Text style={styles.progressText}>
+            {currentIndex + 1}/{questions.length}
           </Text>
         </View>
 
-        {/* Feedback Box */}
-        {feedback && (
-          <View style={styles.feedbackBox}>
-            <Text style={styles.scoreText}>Score: {feedback.score}/10</Text>
-            <Text style={styles.feedbackItem}>✅ {feedback.strength}</Text>
-            {feedback.improvement && (
-              <Text style={styles.feedbackItem}>📈 {feedback.improvement}</Text>
-            )}
+        {/* Scrollable Content */}
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Question Card */}
+          <View style={styles.questionCard}>
+            <Text style={styles.questionBadge}>
+              QUESTION {currentIndex + 1} OF {questions.length}
+            </Text>
+            <Text style={styles.qText}>{questions[currentIndex]}</Text>
           </View>
-        )}
 
-        {/* Action Buttons */}
-        <View style={styles.buttonRow}>
-          {!feedback && (
-            <TouchableOpacity
-              style={styles.skipBtn}
-              onPress={handleSkip}
-              disabled={isProcessing}
-            >
-              <Text style={styles.skipBtnText}>Skip</Text>
-            </TouchableOpacity>
+          {/* Answer Section */}
+          <View style={styles.answerSection}>
+            <Text style={styles.answerLabel}>Your Answer</Text>
+            <View style={styles.inputRow}>
+              <TextInput
+                style={styles.input}
+                multiline
+                value={answer}
+                onChangeText={setAnswer}
+                placeholder="Speak or type your answer..."
+                placeholderTextColor="#4b5563"
+              />
+              <TouchableOpacity
+                style={[styles.micBtn, isRecording && styles.micActive]}
+                onPress={toggleRecording}
+                disabled={isProcessing}
+              >
+                {isProcessing ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Ionicons
+                    name={isRecording ? "stop" : "mic"}
+                    size={22}
+                    color="#fff"
+                  />
+                )}
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.hintText}>
+              {isProcessing ? "Transcribing..." : isRecording ? "🔴 Recording — tap mic to stop" : "Tap the mic to record your answer"}
+            </Text>
+          </View>
+
+          {/* Feedback Box (shown after evaluation) */}
+          {feedback && (
+            <View style={styles.feedbackBox}>
+              <Text style={styles.scoreText}>Score: {feedback.score}/10</Text>
+              <Text style={styles.feedbackItem}>✅ {feedback.strength}</Text>
+              {feedback.improvement && (
+                <Text style={styles.feedbackItem}>📈 {feedback.improvement}</Text>
+              )}
+            </View>
           )}
 
-          <TouchableOpacity
-            style={[styles.submitBtn, { flex: 1 }]}
-            onPress={feedback ? handleNext : handleEvaluate}
-            disabled={isProcessing}
-          >
-            {isProcessing ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.btnText}>
-                {feedback
-                  ? currentIndex + 1 >= questions.length
-                    ? "See Results"
-                    : "Next Question"
-                  : "Submit Answer"}
-              </Text>
+          {/* Action Buttons */}
+          <View style={styles.actionRow}>
+            {!feedback && (
+              <TouchableOpacity
+                style={styles.skipBtn}
+                onPress={handleSkip}
+                disabled={isProcessing}
+              >
+                <Text style={styles.skipBtnText}>Skip</Text>
+              </TouchableOpacity>
             )}
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+            <TouchableOpacity
+              style={[styles.submitBtn, { flex: 1 }]}
+              onPress={feedback ? handleNext : handleEvaluate}
+              disabled={isProcessing}
+            >
+              {isProcessing ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.btnText}>
+                  {feedback
+                    ? currentIndex + 1 >= questions.length
+                      ? "See Results"
+                      : "Next Question →"
+                    : "Submit Answer"}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -516,116 +518,136 @@ const styles = StyleSheet.create({
     backgroundColor: "#0f172a",
   },
   scrollContent: {
-    padding: 25,
-    justifyContent: "center",
-    flexGrow: 1,
+    paddingHorizontal: 20,
+    paddingTop: 4,
+    paddingBottom: 24,
   },
   topHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 20,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 12,
+    gap: 10,
   },
   exitBtn: {
-    marginRight: 15,
-    width: 36,
-    height: 36,
+    width: 34,
+    height: 34,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "#1e293b",
-    borderRadius: 18,
-  },
-  progressContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 20,
+    borderRadius: 17,
   },
   progressBar: {
     flex: 1,
-    height: 8,
+    height: 5,
     backgroundColor: "#1e293b",
-    borderRadius: 4,
+    borderRadius: 3,
     overflow: "hidden",
   },
   progressFill: {
     height: "100%",
     backgroundColor: "#3b82f6",
-    borderRadius: 4,
+    borderRadius: 3,
   },
   progressText: {
-    marginLeft: 12,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "700",
-    color: "#94a3b8",
+    color: "#64748b",
+  },
+  questionCard: {
+    backgroundColor: "#131b2e",
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#1e293b",
+  },
+  questionBadge: {
+    color: "#3B82F6",
+    fontWeight: "700",
+    fontSize: 11,
+    letterSpacing: 1.2,
+    marginBottom: 12,
   },
   qText: {
-    fontSize: 22,
-    fontWeight: "800",
-    marginBottom: 24,
-    textAlign: "center",
-    color: "#f8fafc",
-    lineHeight: 30,
+    fontSize: 18,
+    fontWeight: "700",
+    textAlign: "left",
+    color: "#f1f5f9",
+    lineHeight: 26,
+  },
+  answerSection: {
+    marginBottom: 8,
+  },
+  answerLabel: {
+    color: "#94a3b8",
+    fontSize: 13,
+    fontWeight: "600",
+    marginBottom: 8,
+    letterSpacing: 0.3,
+  },
+  inputRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 10,
   },
   input: {
+    flex: 1,
     backgroundColor: "#1e293b",
     color: "#f8fafc",
-    borderRadius: 16,
-    padding: 18,
-    height: 140,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 14,
+    minHeight: 100,
+    maxHeight: 160,
     textAlignVertical: "top",
     borderWidth: 1,
     borderColor: "#334155",
-    fontSize: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    elevation: 4,
+    fontSize: 15,
+    lineHeight: 22,
   },
-  micContainer: { alignItems: "center", marginVertical: 30 },
   micBtn: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: "#3b82f6",
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#3b82f6",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 15,
-    elevation: 10,
+    marginBottom: 4,
   },
   micActive: {
     backgroundColor: "#ef4444",
-    shadowColor: "#ef4444",
-    transform: [{ scale: 1.15 }]
+    transform: [{ scale: 1.08 }],
   },
-  hintText: { marginTop: 15, color: "#94a3b8", fontSize: 14, fontWeight: "600" },
-  buttonRow: {
+  hintText: {
+    color: "#64748b",
+    fontSize: 12,
+    marginTop: 8,
+  },
+  actionRow: {
     flexDirection: "row",
-    gap: 15,
-    marginTop: 10,
+    gap: 10,
+    marginTop: 16,
   },
   submitBtn: {
     backgroundColor: "#10b981",
-    paddingVertical: 18,
-    borderRadius: 16,
+    paddingVertical: 16,
+    borderRadius: 14,
     alignItems: "center",
-    shadowColor: "#10b981",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
   },
   skipBtn: {
-    backgroundColor: "#334155",
-    paddingVertical: 18,
-    borderRadius: 16,
+    backgroundColor: "#1e293b",
+    paddingVertical: 16,
+    borderRadius: 14,
     alignItems: "center",
-    paddingHorizontal: 28,
+    paddingHorizontal: 24,
+    borderWidth: 1,
+    borderColor: "#334155",
   },
-  skipBtnText: { color: "#cbd5e1", fontWeight: "700", fontSize: 16 },
-  btnText: { color: "#ffffff", fontWeight: "bold", fontSize: 16, letterSpacing: 0.5 },
+  skipBtnText: { color: "#94a3b8", fontWeight: "600", fontSize: 15 },
+  btnText: { color: "#ffffff", fontWeight: "bold", fontSize: 15, letterSpacing: 0.3 },
   feedbackBox: {
     backgroundColor: "rgba(16, 185, 129, 0.1)",
     padding: 18,

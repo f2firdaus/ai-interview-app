@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import fs from 'fs';
 import path from 'path';
-import { evaluateAnswer } from "../../services/hf.service";
+import { evaluateAnswer } from "../../services/gemini.service";
 
 export const evaluate = async (req: Request, res: Response) => {
   try {

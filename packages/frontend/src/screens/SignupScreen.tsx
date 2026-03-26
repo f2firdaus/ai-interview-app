@@ -43,9 +43,8 @@ export default function SignupScreen({ navigation }: any) {
       const response = await api.post("/auth/signup", { name, email, password });
 
       if (response.data.token) {
-        showAlert("Success", "Account created successfully. Please log in.", [
-          { text: "Log In", onPress: () => navigation.navigate("Login") }
-        ]);
+        await AsyncStorage.setItem("userToken", response.data.token);
+        navigation.replace("Main");
       }
     } catch (error: any) {
       const msg = error.response?.data?.error || "Signup failed";
