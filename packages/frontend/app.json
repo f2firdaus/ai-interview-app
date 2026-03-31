@@ -2,6 +2,7 @@
   "expo": {
     "name": "ai-interview-mobile",
     "slug": "ai-interview-mobile",
+    "newArchEnabled": false,
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
@@ -11,19 +12,33 @@
       "android"
     ],
     "plugins": [
-      "@react-native-voice/voice",
-      "expo-audio"
+      "expo-audio",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 26,
+            "compileSdkVersion": 35
+          }
+        }
+      ]
     ],
     "android": {
       "permissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.SCHEDULE_EXACT_ALARM",
-        "android.permission.POST_NOTIFICATIONS"
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
       ],
       "package": "com.anonymous.aiinterviewmobile"
     },
     "ios": {
       "bundleIdentifier": "com.anonymous.aiinterviewmobile"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "a9cc8e7d-8906-4981-9061-084f9b448631"
+      }
     }
   }
 }

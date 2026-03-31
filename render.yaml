@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: ai-interview-app-backend
+    runtime: node
+    plan: free
+    rootDir: .
+    buildCommand: npm install && npm run build --workspace=packages/backend
+    startCommand: npm run start --workspace=packages/backend
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 20

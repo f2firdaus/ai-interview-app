@@ -8,6 +8,12 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 // - iOS simulator uses localhost
 // - Physical device uses the dev machine IP from Expo
 function getBaseUrl(): string {
+  // Production URL (Standalone APK)
+  if (!__DEV__) {
+    return "https://ai-interview-app-1-pvj7.onrender.com/api";
+  }
+
+  // Local development (Expo Go)
   // Try to get the debuggerHost from Expo (works on physical devices)
   const debuggerHost = Constants.expoConfig?.hostUri ?? Constants.manifest2?.extra?.expoGo?.debuggerHost;
 
