@@ -40,9 +40,14 @@ export const getInterviews = async (req: Request, res: Response) => {
     // Whitelist status values to prevent injection
     if (status && VALID_STATUSES.includes(status)) {
       query.status = status;
+      if (status === "upcoming") {
+        // Only show interviews from up to 2 hours ago and in the future
+        query.date = { $gte: new Date(Date.now() - 2 * 60 * 60 * 1000) };
+      }
     }
 
-    const items = await Interview.find(query).sort({ date: -1 }).limit(50);
+    const sortOrder = status === "upcoming" ? { date: 1 as const } : { date: -1 as const };
+    const items = await Interview.find(query).sort(sortOrder).limit(50);
     res.json(items);
   } catch (err: any) {
     res.status(400).json({ error: err.message });
@@ -98,7 +103,11 @@ export const getStats = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.id;
     const completed = await Interview.find({ status: "completed", userId }).sort({ date: -1 });
-    const upcoming = await Interview.find({ status: "upcoming", userId }).sort({ date: 1 });
+    const upcoming = await Interview.find({ 
+      status: "upcoming", 
+      userId,
+      date: { $gte: new Date(Date.now() - 2 * 60 * 60 * 1000) }
+    }).sort({ date: 1 });
 
     const totalCompleted = completed.length;
     const totalUpcoming = upcoming.length;
