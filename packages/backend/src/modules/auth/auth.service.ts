@@ -9,14 +9,44 @@ const isStrongPassword = (pass: string) => {
   return strongRegex.test(pass);
 };
 
+const normalizeEmail = (email: string) => email.trim().toLowerCase();
+
+const createMailTransporter = () => {
+  const { EMAIL_USER, EMAIL_PASS, EMAIL_HOST, EMAIL_PORT, EMAIL_SECURE } = process.env;
+
+  if (!EMAIL_USER || !EMAIL_PASS) {
+    throw new Error("Password reset email is not configured on the server.");
+  }
+
+  if (EMAIL_HOST) {
+    return nodemailer.createTransport({
+      host: EMAIL_HOST,
+      port: EMAIL_PORT ? Number(EMAIL_PORT) : 587,
+      secure: EMAIL_SECURE === "true",
+      auth: {
+        user: EMAIL_USER,
+        pass: EMAIL_PASS,
+      },
+    });
+  }
+
+  return nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: EMAIL_USER,
+      pass: EMAIL_PASS,
+    },
+  });
+};
+
 export const signupEmail = async (name: string, email: string, password: string) => {
   if (!name || !email || !password) throw new Error("All fields are required");
   if (!isStrongPassword(password)) {
     throw new Error("Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, and one number.");
   }
 
-  const cleanEmail = email.trim().toLowerCase();
-  const exist = await User.findOne({ email: new RegExp('^' + cleanEmail + '$', 'i') });
+  const cleanEmail = normalizeEmail(email);
+  const exist = await User.findOne({ email: new RegExp("^" + cleanEmail + "$", "i") });
   if (exist) throw new Error("Email already in use");
 
   const salt = await bcrypt.genSalt(12);
@@ -33,8 +63,8 @@ export const signupEmail = async (name: string, email: string, password: string)
 };
 
 export const loginEmail = async (email: string, password: string) => {
-  const cleanEmail = email.trim().toLowerCase();
-  const user = await User.findOne({ email: new RegExp('^' + cleanEmail + '$', 'i') });
+  const cleanEmail = normalizeEmail(email);
+  const user = await User.findOne({ email: new RegExp("^" + cleanEmail + "$", "i") });
   if (!user) throw new Error("Invalid credentials");
 
   const isMatch = await bcrypt.compare(password, user.password || "");
@@ -73,29 +103,19 @@ export const changePassword = async (id: string, currentPassword: string, newPas
 };
 
 export const resetPassword = async (email: string) => {
-  const cleanEmail = email.trim().toLowerCase();
-  const user = await User.findOne({ email: new RegExp('^' + cleanEmail + '$', 'i') });
-  if (!user) return; // Silently return — don't reveal if email exists
+  const cleanEmail = normalizeEmail(email);
+  const user = await User.findOne({ email: new RegExp("^" + cleanEmail + "$", "i") });
+  if (!user) return;
 
-  // Generate a user-friendly 6-character temporary password
   const tempPw = Math.random().toString(36).slice(-6).toUpperCase();
-  const salt = await bcrypt.genSalt(12);
-  user.password = await bcrypt.hash(tempPw, salt);
-  await user.save();
 
-  // Send the actual email
   try {
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
+    const transporter = createMailTransporter();
+    await transporter.verify();
 
-    const mailOptions = {
+    await transporter.sendMail({
       from: `"HireAI Support" <${process.env.EMAIL_USER}>`,
-      to: email,
+      to: cleanEmail,
       subject: "Your New Password for HireAI",
       text: `Hello,
 
@@ -107,14 +127,15 @@ Please log in using this password. Make sure to change your password immediately
 
 Best,
 The HireAI Team`,
-    };
+    });
 
-    await transporter.sendMail(mailOptions);
-    console.log(`✅ Password reset email successfully sent to: ${email}`);
+    const salt = await bcrypt.genSalt(12);
+    user.password = await bcrypt.hash(tempPw, salt);
+    await user.save();
+    console.log(`Password reset email successfully sent to: ${cleanEmail}`);
   } catch (error) {
-    console.error(`❌ Failed to send password reset email to ${email}:`, error);
-    // Even if the email fails, we log it for debug purposes.
-    console.log(`Fallback Terminal Output - 🔑 Password reset for ${email}: ${tempPw}`);
+    console.error(`Failed to send password reset email to ${cleanEmail}:`, error);
+    throw new Error("We could not send the reset email right now. Please try again later.");
   }
 };
 
@@ -125,8 +146,6 @@ export const deleteAccount = async (id: string, password: string) => {
   const isMatch = await bcrypt.compare(password, user.password);
   if (!isMatch) throw new Error("Password is incorrect");
 
-  // Delete all user interviews
   await Interview.deleteMany({ userId: id });
-  // Delete user account
   await User.findByIdAndDelete(id);
 };

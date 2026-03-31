@@ -58,8 +58,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
     await auth.resetPassword(email);
     res.json({ message: "If that email exists, a reset has been processed. Use the temporary password sent to login." });
   } catch (err: any) {
-    // Always return success to prevent email enumeration
-    res.json({ message: "If that email exists, a reset has been processed." });
+    res.status(503).json({ error: err.message || "Unable to send reset email right now." });
   }
 };
 

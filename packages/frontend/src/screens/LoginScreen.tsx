@@ -8,7 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
-  Alert,
+  ScrollView,
   StatusBar,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -59,9 +59,16 @@ export default function LoginScreen({ navigation }: any) {
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "android" ? 16 : 0}
       >
-        <View style={styles.container}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentInsetAdjustmentBehavior="always"
+        >
+          <View style={styles.container}>
           {/* Header */}
           <View style={styles.headerRow}>
             <View style={styles.logoRow}>
@@ -130,9 +137,10 @@ export default function LoginScreen({ navigation }: any) {
                 }
                 try {
                   await api.post("/auth/forgot-password", { email });
-                  showAlert("Check Email", "If that email exists, a password reset has been sent. Check your email or contact support.", [{ text: "OK" }]);
-                } catch {
-                  showAlert("Success", "If that email exists, a password reset has been processed.", [{ text: "OK" }]);
+                  showAlert("Check Email", "If that email exists, a password reset email has been sent.", [{ text: "OK" }]);
+                } catch (err: any) {
+                  const msg = err.response?.data?.error || "Unable to send reset email right now.";
+                  showAlert("Reset Failed", msg, [{ text: "OK", style: "destructive" }]);
                 }
               }}
               style={{ alignSelf: "flex-end", marginBottom: 20, marginTop: -10 }}
@@ -159,7 +167,8 @@ export default function LoginScreen({ navigation }: any) {
               </Text>
             </Text>
           </View>
-        </View>
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView >
   );
@@ -173,6 +182,10 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
+    minHeight: "100%",
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   headerRow: {
     flexDirection: "row",

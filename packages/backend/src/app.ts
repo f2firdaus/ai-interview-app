@@ -11,6 +11,10 @@ import { errorHandler } from "./middleware/error.middleware";
 
 const app = express();
 
+// Render and similar hosts sit behind a proxy, so trust the first proxy hop
+// to get the real client IP for rate limiting and request metadata.
+app.set("trust proxy", 1);
+
 // Middleware
 app.use(cors());
 app.use(helmet());
