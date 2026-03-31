@@ -15,24 +15,26 @@ export const signupEmail = async (name: string, email: string, password: string)
     throw new Error("Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, and one number.");
   }
 
-  const exist = await User.findOne({ email });
+  const cleanEmail = email.trim().toLowerCase();
+  const exist = await User.findOne({ email: new RegExp('^' + cleanEmail + '$', 'i') });
   if (exist) throw new Error("Email already in use");
 
   const salt = await bcrypt.genSalt(12);
   const hashedPassword = await bcrypt.hash(password, salt);
 
-  const user = await User.create({ name, email, password: hashedPassword });
+  const user = await User.create({ name, email: cleanEmail, password: hashedPassword });
 
   if (!process.env.JWT_SECRET) throw new Error("JWT_SECRET is not defined");
   return jwt.sign(
-    { id: user._id, email },
+    { id: user._id, email: cleanEmail },
     process.env.JWT_SECRET,
     { expiresIn: "7d" }
   );
 };
 
 export const loginEmail = async (email: string, password: string) => {
-  const user = await User.findOne({ email });
+  const cleanEmail = email.trim().toLowerCase();
+  const user = await User.findOne({ email: new RegExp('^' + cleanEmail + '$', 'i') });
   if (!user) throw new Error("Invalid credentials");
 
   const isMatch = await bcrypt.compare(password, user.password || "");
@@ -40,7 +42,7 @@ export const loginEmail = async (email: string, password: string) => {
 
   if (!process.env.JWT_SECRET) throw new Error("JWT_SECRET is not defined");
   return jwt.sign(
-    { id: user._id, email },
+    { id: user._id, email: user.email },
     process.env.JWT_SECRET,
     { expiresIn: "7d" }
   );
@@ -71,11 +73,12 @@ export const changePassword = async (id: string, currentPassword: string, newPas
 };
 
 export const resetPassword = async (email: string) => {
-  const user = await User.findOne({ email });
+  const cleanEmail = email.trim().toLowerCase();
+  const user = await User.findOne({ email: new RegExp('^' + cleanEmail + '$', 'i') });
   if (!user) return; // Silently return — don't reveal if email exists
 
-  // Generate a temporary password
-  const tempPw = Math.random().toString(36).slice(-10) + "A1!";
+  // Generate a user-friendly 6-character temporary password
+  const tempPw = Math.random().toString(36).slice(-6).toUpperCase();
   const salt = await bcrypt.genSalt(12);
   user.password = await bcrypt.hash(tempPw, salt);
   await user.save();
